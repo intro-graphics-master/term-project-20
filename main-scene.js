@@ -22,7 +22,8 @@ class Solar_System extends Scene
                                                 // TODO (#1):  Complete this list with any additional shapes you need.
       this.shapes = { 'box' : new Cube(),
                    'ball_4' : new Subdivision_Sphere( 4 ),
-                     'star' : new Planar_Star() };
+                     'star' : new Planar_Star(),
+                     'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),};
 
                                                         // TODO (#1d): Modify one sphere shape's existing texture 
                                                         // coordinates in place.  Multiply them all by 5.
@@ -45,7 +46,8 @@ class Solar_System extends Scene
                                                               // Extra credit shaders:
       const black_hole_shader = new Black_Hole_Shader();
       const sun_shader        = new Sun_Shader();
-      
+      const wire_shader = new Wireframe_Shader();
+      const funny_shader = new defs.Funny_Shader();
                                               // *** Materials: *** wrap a dictionary of "options" for a shader.
 
                                               // TODO (#2):  Complete this list with any additional materials you need:
@@ -61,7 +63,8 @@ class Solar_System extends Scene
                                     { texture: new Texture( "assets/earth.gif" ),
                                       ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( .4,.4,.4,1 ) } ),
                       black_hole: new Material( black_hole_shader ),
-                             sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } )
+                             sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
+                             glow: new Material(phong_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.5,.1,.7,1)}),
                        };
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
@@ -196,8 +199,9 @@ class Solar_System extends Scene
       program_state.lights = [ new Light( light_position, Color.of( 1,1,1,1 ), 1000000 ) ];
       model_transform = Mat4.identity();
       this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic.override( yellow ) );
-      model_transform.post_multiply( Mat4.translation([ 0, -2, 0 ]) );
-      this.shapes.ball_4.draw( context, program_state, model_transform, this.materials.metal_earth.override( blue ) );
+      model_transform.post_multiply( Mat4.translation([ 0, -4, 0 ]) );
+      //this.shapes.ball_4.draw( context, program_state, model_transform, this.materials.metal_earth.override( blue ) );
+      this.shapes.record.draw(context, program_state, model_transform, this.materials.glow);
       model_transform.post_multiply( Mat4.rotation( t, Vec.of( 0,1,0 ) ) )
       model_transform.post_multiply( Mat4.rotation( 1, Vec.of( 0,0,1 ) )
                              .times( Mat4.scale      ([ 1,   2, 1 ]) )
@@ -338,7 +342,42 @@ class Gouraud_Shader extends defs.Phong_Shader
     }
 }
 
+const Wireframe_Shader = defs.Wireframe_Shader = 
+class Wireframe_Shader extends Shader{
+  update_GPU(context, gpu_addresses, program_state, model_transform, material){
+      
+  }
+  shared_glsl_code(){
+    return `precision highp float;
+      `;
+  }
+  vertex_glsl_code(){
+      return this.shared_glsl_code() + `
+              attribute vec4 position;
+              attribute vec3 color;
+              uniform mat4 modelViewProjection;
+              varying highp vec3 triangle;
+              void main(void) {
+                  triangle = color;
+                  gl_Position = modelViewProjection * position;
+      }`;
+  }
+  fragment_glsl_code(){
+      return this.shared_glsl_code() + `
+             #extension GL_OES_standard_derivatives : enable
+              //vec4 wire_color = vec4(.5,.5,.5,1);
+              //vec4 fill_color = vec4(1,1,1,1);
+              //highp float wire_width = 1.2;
+              //varying highp vec3 triangle;
+              void main() {
+                  //highp vec3 d = fwidth(triangle);
+                  //highp vec3 tdist = smoothstep(vec3(0.0), d*wire_width, triangle);
+                  //gl_FragColor = mix(wire_color, fill_color, min(min(tdist.x, tdist.y), tdist.z));
+                  gl_FragColor = vec4(.9,.9,.9,.9);
+}`;
+  }
 
+}
 const Black_Hole_Shader = defs.Black_Hole_Shader =
 class Black_Hole_Shader extends Shader         // Simple "procedural" texture shader, with texture coordinates but without an input image.
 { update_GPU( context, gpu_addresses, program_state, model_transform, material )
