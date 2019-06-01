@@ -23,7 +23,11 @@ class Solar_System extends Scene
       this.shapes = { 'box' : new Cube(),
                    'ball_4' : new Subdivision_Sphere( 4 ),
                      'star' : new Planar_Star(),
-                     'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),};
+                    'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),
+                   'spindle': new defs.Shape_From_File("assets/spindle.obj"),
+                    'disk': new defs.Shape_From_File("assets/disk.obj"),
+                     'lid': new defs.Shape_From_File("assets/lid.obj"),
+                     };
 
                                                         // TODO (#1d): Modify one sphere shape's existing texture 
                                                         // coordinates in place.  Multiply them all by 5.
@@ -64,7 +68,7 @@ class Solar_System extends Scene
                                       ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( .4,.4,.4,1 ) } ),
                       black_hole: new Material( black_hole_shader ),
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
-                             glow: new Material(phong_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.5,.1,.7,1)}),
+                             glow: new Material(wire_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.3,.1,.9,1)}),
                        };
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
@@ -87,7 +91,7 @@ class Solar_System extends Scene
     {                                                // display():  Called once per frame of animation.  For each shape that you want to
                                                      // appear onscreen, place a .draw() call for it inside.  Each time, pass in a
                                                      // different matrix value to control where the shape appears.
-     
+     context.context.getExtension( "OES_standard_derivatives" );
                            // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
       if( !context.scratchpad.controls ) 
         {                       // Add a movement controls panel to the page:
@@ -193,20 +197,21 @@ class Solar_System extends Scene
       // ***** BEGIN TEST SCENE *****               
                                           // TODO:  Delete (or comment out) the rest of display(), starting here:
 
-      program_state.set_camera( Mat4.translation([ 0,3,-10 ]) );
+     // program_state.set_camera( Mat4.translation([ 0,0,-10 ]) );
       const angle = Math.sin( t );
       const light_position = Mat4.rotation( angle, [ 1,0,0 ] ).times( Vec.of( 0,-1,1,0 ) );
       program_state.lights = [ new Light( light_position, Color.of( 1,1,1,1 ), 1000000 ) ];
       model_transform = Mat4.identity();
       this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic.override( yellow ) );
-      model_transform.post_multiply( Mat4.translation([ 0, -4, 0 ]) );
+      //model_transform.post_multiply( Mat4.translation([ 0, -4, 0 ]) );
       //this.shapes.ball_4.draw( context, program_state, model_transform, this.materials.metal_earth.override( blue ) );
+      model_transform = model_transform.post_multiply(Mat4.translation([0,-2,0]));
       this.shapes.record.draw(context, program_state, model_transform, this.materials.glow);
       model_transform.post_multiply( Mat4.rotation( t, Vec.of( 0,1,0 ) ) )
       model_transform.post_multiply( Mat4.rotation( 1, Vec.of( 0,0,1 ) )
                              .times( Mat4.scale      ([ 1,   2, 1 ]) )
                              .times( Mat4.translation([ 0,-1.5, 0 ]) ) );
-      this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic_stars.override( yellow ) );
+      //this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic_stars.override( yellow ) );
 
       // ***** END TEST SCENE *****
 
@@ -344,36 +349,63 @@ class Gouraud_Shader extends defs.Phong_Shader
 
 const Wireframe_Shader = defs.Wireframe_Shader = 
 class Wireframe_Shader extends Shader{
-  update_GPU(context, gpu_addresses, program_state, model_transform, material){
-      
-  }
+
+
+  send_material( gl, gpu, material )
+    {                                       // send_material(): Send the desired shape-wide material qualities to the
+                                            // graphics card, where they will tweak the Phong lighting formula.                                      
+      gl.uniform4fv( gpu.sun_color,    material.color       );
+      gl.uniform1f ( gpu.ambient,        material.ambient     );
+      gl.uniform1f ( gpu.diffusivity,    material.diffusivity );
+      gl.uniform1f ( gpu.specularity,    material.specularity );
+      gl.uniform1f ( gpu.smoothness,     material.smoothness  );
+    }
+  update_GPU( context, gpu_addresses, program_state, model_transform, material )
+    {
+                      // TODO (#EC 2): Pass the same information to the shader as for EC part 1.  Additionally
+                      // pass material.color to the shader.
+     const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
+                      PCM = P.times( C ).times( M );
+        context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D( PCM.transposed() ) );
+        context.uniform1f ( gpu_addresses.time, program_state.animation_time / 1000 );  
+        context.uniform1f(gpu_addresses.colorSent, material.color);  
+        const defaults = { color: Color.of( 0,0,0,1 ), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40 };
+        material = Object.assign( {}, defaults, material );
+        this.send_material ( context, gpu_addresses, material );
+    }
   shared_glsl_code(){
-    return `precision highp float;
+    return `                   
+              #extension GL_OES_standard_derivatives : enable
+              precision mediump float;
+              varying highp vec3 triangle;
       `;
   }
   vertex_glsl_code(){
       return this.shared_glsl_code() + `
-              attribute vec4 position;
-              attribute vec3 color;
-              uniform mat4 modelViewProjection;
-              varying highp vec3 triangle;
-              void main(void) {
-                  triangle = color;
-                  gl_Position = modelViewProjection * position;
-      }`;
+
+        uniform vec4 sun_color;
+        attribute vec3 position;                            // Position is expressed in object coordinates.
+        uniform mat4 projection_camera_model_transform;
+
+        void main()
+        {                    // Compute the vertex's final resting place (in NDCS), and use the hard-coded color of the vertex:
+          gl_Position = projection_camera_model_transform * vec4(position,1.0);
+          triangle = vec3(sun_color.r,sun_color.g,sun_color.b);
+        }
+      `;
   }
   fragment_glsl_code(){
       return this.shared_glsl_code() + `
-             #extension GL_OES_standard_derivatives : enable
-              //vec4 wire_color = vec4(.5,.5,.5,1);
-              //vec4 fill_color = vec4(1,1,1,1);
-              //highp float wire_width = 1.2;
-              //varying highp vec3 triangle;
+
+              vec4 wire_color = vec4(.8,.8,.8,.4);
+              vec4 fill_color = vec4(.207,.172,.137,1.);
+             highp float wire_width = 1.;
               void main() {
-                  //highp vec3 d = fwidth(triangle);
-                  //highp vec3 tdist = smoothstep(vec3(0.0), d*wire_width, triangle);
-                  //gl_FragColor = mix(wire_color, fill_color, min(min(tdist.x, tdist.y), tdist.z));
-                  gl_FragColor = vec4(.9,.9,.9,.9);
+                  if(min(min(triangle.x, triangle.y), triangle.z) < wire_width/10.0) {
+                       gl_FragColor = wire_color;
+                   } else {
+                       gl_FragColor = fill_color;
+                    }
 }`;
   }
 
