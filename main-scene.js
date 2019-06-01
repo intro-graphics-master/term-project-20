@@ -2,6 +2,8 @@ import {
     tiny,
     defs
 } from './assignment-4-resources.js';
+
+import { Key_Board } from './key-board.js';
 // Pull these names into this module's scope for convenience:
 const {
     Vec,
@@ -29,7 +31,6 @@ const {
 // Now we have loaded everything in the files tiny-graphics.js, tiny-graphics-widgets.js, and assignment-4-resources.js.
 // This yielded "tiny", an object wrapping the stuff in the first two files, and "defs" for wrapping all the rest.
 
-
 // Variables that are in scope for you to use:
             // this.shapes: Your shapes, defined above.
             // this.materials: Your materials, defined above.
@@ -40,7 +41,12 @@ const {
             //                         into the "this.camera_teleporter.cameras" array.
             // t:  Your program's time in seconds.
             // program_state:  Information the shader needs for drawing.  Pass to draw().
-            // context:  Wraps the WebGL rendering context shown onscreen.  Pass to draw().       
+            // context:  Wraps the WebGL rendering context shown onscreen.  Pass to draw().  
+            
+          
+// add event listener
+
+
 
 const Main_Scene =
     class Solar_System extends Scene { // **Solar_System**:  Your Assingment's Scene.
@@ -52,9 +58,19 @@ const Main_Scene =
                 'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),
                 'disk': new defs.Shape_From_File("assets/disk.obj"),
             };
+            
+            // key_board that messes with object attributes
+            // changes this.modifiers 
+            const key_board = new Key_Board;
+            window.addEventListener("keydown", key_board.handleKey);
+
+            this.modifiers = { 
+
+              // material : modifier obj
+
+            } // object modifiers 
 
             // *** Shaders ***
-          
             const phong_shader = new defs.Phong_Shader(2);
             const texture_shader = new defs.Textured_Phong(2);
             // texture that interacts with light
@@ -66,6 +82,12 @@ const Main_Scene =
             const sun_shader = new Sun_Shader();
             const wire_shader = new Wireframe_Shader();
             const funny_shader = new defs.Funny_Shader();
+
+            // *** Pastel Colors *** 
+            this.colors = { 
+
+            }
+
 
             // *** Materials: *** wrap a dictionary of "options" for a shader.
 
@@ -119,11 +141,13 @@ const Main_Scene =
             //         .times(Mat4.translation([0, 0, -150])));
         }
 
+        applyModifiers() { 
+          // applyModifiers to materials
+        }
         
         // animate
-        display(context, program_state) { // display():  Called once per frame of animation.  For each shape that you want to
-            // appear onscreen, place a .draw() call for it inside.  Each time, pass in a
-            // different matrix value to control where the shape appears.
+        display(context, program_state) { 
+          // display():  Called once per frame of animation. 
 
             // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
             if (!context.scratchpad.controls) { // Add a movement controls panel to the page:
@@ -151,8 +175,7 @@ const Main_Scene =
             this.camera_teleporter.cameras = [];
             this.camera_teleporter.cameras.push(Mat4.look_at(Vec.of(0, 10, 20), Vec.of(0, 0, 0), Vec.of(0, 1, 0)));                                                
 
-            const blue = Color.of(0, 0, .5, 1),
-                yellow = Color.of(.5, .5, 0, 1);
+            applyModifiers();
 
             // Variable model_transform will be a local matrix value that helps us position shapes.
             // It starts over as the identity every single frame - coordinate axes at the origin.
@@ -169,9 +192,10 @@ const Main_Scene =
             this.materials.sun.color = sun_color; // Assign our current sun color to the existing sun material.          
 
             // TODO (#5c):  Throughout your program whenever you use a material (by passing it into draw),
-            // pass in a modified version instead.  Call .override( modifier ) on the material to
+            // pass in a modified version instead.  Call override.( modifier ) on the material to
             // generate a new one that uses the below modifier, replacing the ambient term with a 
-            // new value based on our light switch.                         
+            // new value based on our light switch.             
+
             const modifier = this.lights_on ? {
                 ambient: 0.3
             } : {
@@ -194,7 +218,6 @@ const Main_Scene =
             model_transform.post_multiply( Mat4.translation([-1, 0, 0]))
             this.shapes.disk.draw(context, program_state, model_transform, this.materials.metal);
             
-
         }
     }
 
@@ -366,7 +389,7 @@ const Wireframe_Shader = defs.Wireframe_Shader =
         }
 
     }
-const Black_Hole_Shader = defs.Black_Hole_Shader =
+const Black_Hole_Shader = defs.Black_Hole_Shader = 
     class Black_Hole_Shader extends Shader // Simple "procedural" texture shader, with texture coordinates but without an input image.
 {
     update_GPU(context, gpu_addresses, program_state, model_transform, material) {
@@ -386,18 +409,14 @@ const Black_Hole_Shader = defs.Black_Hole_Shader =
     }
     shared_glsl_code() // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
     {
-        // TODO (#EC 1c):  For both shaders, declare a varying vec2 to pass a texture coordinate between
-        // your shaders.  Also make sure both shaders have an animation_time input (a uniform).
+
         return `precision mediump float;
              
       `;
     }
     vertex_glsl_code() // ********* VERTEX SHADER *********
     {
-        // TODO (#EC 1d,e):  Create the final "gl_Position" value of each vertex based on a displacement
-        // function.  Also pass your texture coordinate to the next shader.  As inputs,
-        // you have the current vertex's stored position and texture coord, animation time,
-        // and the final product of the projection, camera, and model matrices.
+    
         return this.shared_glsl_code() + `
 
         void main()
@@ -407,9 +426,7 @@ const Black_Hole_Shader = defs.Black_Hole_Shader =
     }
     fragment_glsl_code() // ********* FRAGMENT SHADER *********
     {
-        // TODO (#EC 1f):  Using the input UV texture coordinates and animation time,
-        // calculate a color that makes moving waves as V increases.  Store
-        // the result in gl_FragColor.
+   
         return this.shared_glsl_code() + `
         void main()
         { 
@@ -418,6 +435,41 @@ const Black_Hole_Shader = defs.Black_Hole_Shader =
     }
 }
 
+
+// displacement map shader
+const Bumpy_Shader = defs.Bumpy_Shader = 
+  class Bumpy_Shader extends Shader { 
+
+      update_GPU(context, gpu_addresses, program_state, model_transform, material) {
+
+
+      }
+
+      shared_glsl_code() // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
+      {
+          return `precision mediump float;
+                          
+    `;
+      }
+      vertex_glsl_code() // ********* VERTEX SHADER *********
+      {
+          return this.shared_glsl_code() + `
+
+      void main()
+      {
+
+      }`;
+      }
+      fragment_glsl_code() // ********* FRAGMENT SHADER *********
+      {
+          return this.shared_glsl_code() + `
+      void main() 
+      {
+
+      } `;
+      }
+
+  }
 
 const Sun_Shader = defs.Sun_Shader =
     class Sun_Shader extends Shader {
