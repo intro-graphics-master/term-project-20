@@ -66,6 +66,10 @@ class Solar_System extends Scene
                                               // TODO (#2):  Complete this list with any additional materials you need:
 
       this.pixelation = 100;
+      this.multipass_effects = {
+        "pixelate": 0,
+      };
+
       this.materials = { plastic: new Material( phong_shader, 
                                     { ambient: 0, diffusivity: 1, specularity: 0, color: Color.of( 1,.5,1,1 ) } ),
                    plastic_stars: new Material( texture_shader_2,    
@@ -97,12 +101,16 @@ class Solar_System extends Scene
                                       // buttons with key bindings for affecting this scene, and live info readouts.
 
                                  // TODO (#5b): Add a button control.  Provide a callback that flips the boolean value of "this.lights_on".
-       this.key_triggered_button("Increase pixelation", [ "m" ], () => {
-        this.pixelation -= 2;
+       this.key_triggered_button("Increase effect", [ "[" ], () => {
+         if (this.multipass_effects.pixelate) this.pixelation -= 2;
        }, "green");
-       this.key_triggered_button("Decrease pixelation", [ "n" ], () => {
-        this.pixelation += 2;
+       this.key_triggered_button("Decrease effect", [ "]" ], () => {
+         if (this.multipass_effects.pixelate) this.pixelation += 2;
        }, "red");
+
+      this.key_triggered_button("Toggle pixelation", [ "b" ], () => {
+        this.multipass_effects.pixelate ^= 1;
+      })
     }
   display( context, program_state )
     {                                                // display():  Called once per frame of animation.  For each shape that you want to
@@ -247,34 +255,46 @@ class Solar_System extends Scene
       this.shapes.lid.draw(context, program_state, model_transform, this.materials.plastic.override({color:Color.of(.4,.4,.4,.5)}));
 
       // two-pass rendering
-      this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
-      this.texture.image.src = this.scratchpad.toDataURL("image/png");
 
-      if (this.skipped_first_frame)
-        this.texture.copy_onto_graphics_card(context.context, false);
-      this.skipped_first_frame = true;
+      if (Object.values(this.multipass_effects).some(effect => effect)) {
+        this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
+        this.texture.image.src = this.scratchpad.toDataURL("image/png");
 
-      context.context.clear(context.context.COLOR_BUFFER_BIT | context.context.DEPTH_BUFFER_BIT);
+        if (this.skipped_first_frame)
+          this.texture.copy_onto_graphics_card(context.context, false);
+        this.skipped_first_frame = true;
 
-      model_transform = Mat4.identity();
-      // model_transform = program_state.camera_transform.post_multiply(Mat4.rotation(Math.PI/2, [1,0,0]));
-      let camera_i = program_state.camera_transform.times(Vec.of(1,0,1,0)).to3().normalized();
-      let camera_j = program_state.camera_transform.times(Vec.of(0,1,0,0)).to3().normalized();
-      let camera_k = program_state.camera_transform.times(Vec.of(0,0,1,0)).to3().normalized();
-      let camera_p = program_state.camera_transform.times(Vec.of(0,0,0,1)).to3();
+        context.context.clear(context.context.COLOR_BUFFER_BIT | context.context.DEPTH_BUFFER_BIT);
 
-      let translate = camera_p.plus(camera_k.times(-8));
+        model_transform = Mat4.identity();
+        // model_transform = program_state.camera_transform.post_multiply(Mat4.rotation(Math.PI/2, [1,0,0]));
+        let camera_i = program_state.camera_transform.times(Vec.of(1,0,1,0)).to3().normalized();
+        let camera_j = program_state.camera_transform.times(Vec.of(0,1,0,0)).to3().normalized();
+        let camera_k = program_state.camera_transform.times(Vec.of(0,0,1,0)).to3().normalized();
+        let camera_p = program_state.camera_transform.times(Vec.of(0,0,0,1)).to3();
 
-      model_transform.post_multiply(Mat4.identity()
-        // .times(program_state.camera_transform)
-        // .times(Mat4.translation(Vec.of(0,0,-10)))
-        // .times(Mat4.translation(camera_loc + Vec.of(0,0,-10)))
-        // .times(Mat4.translation(translate))
-        .times(Mat4.inverse(Mat4.look_at(translate, camera_p, camera_j)))
-        .times(Mat4.rotation(Math.PI/2, [1,0,0]))
-        .times(Mat4.scale([-5.22,1,2.9]))
+        let translate = camera_p.plus(camera_k.times(-8));
+
+        model_transform.post_multiply(Mat4.identity()
+          // .times(program_state.camera_transform)
+          // .times(Mat4.translation(Vec.of(0,0,-10)))
+          // .times(Mat4.translation(camera_loc + Vec.of(0,0,-10)))
+          // .times(Mat4.translation(translate))
+          .times(Mat4.inverse(Mat4.look_at(translate, camera_p, camera_j)))
+          //.times(Mat4.rotation(Math.PI/2, [1,0,0]))
+          .times(Mat4.scale([5.22,2.9,1]))
         );
-      this.shapes.box.draw(context, program_state, model_transform, this.materials.pixelate.override({pixels: this.pixelation}));
+
+        // ***** ADD MULTIPASS EFFECTS HERE
+
+        let multipass_material = undefined;
+
+        if (this.multipass_effects.pixelate) {
+          multipass_material = this.materials.pixelate.override({pixels: this.pixelation});
+        }
+
+        this.shapes.box.draw(context, program_state, model_transform, multipass_material);
+      }
 
       // ***** END TEST SCENE *****
 
