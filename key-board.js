@@ -7,7 +7,7 @@ export const Key_Board = class Key_Board {
         console.log(e.keyCode);
         switch(e.keyCode) { 
             // for each keyCode play a different sound + override material etc.
-
+            // generate diff bumpmap
         }
     }
 }
