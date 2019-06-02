@@ -20,14 +20,17 @@ class Solar_System extends Scene
                                                         // Don't define blueprints for shapes in display() every frame.
 
                                                 // TODO (#1):  Complete this list with any additional shapes you need.
-      this.shapes = { 'box' : new Cube(),
+       const Flat_Obj = defs.Shape_From_File.prototype.make_flat_shaded_version();
+       this.shapes = { 'box' : new Cube(),
                    'ball_4' : new Subdivision_Sphere( 4 ),
                      'star' : new Planar_Star(),
-                    'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),
+                    //'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),
+                    'record': new Flat_Obj("assets/mainRecordPlayer.obj"),
                    'spindle': new defs.Shape_From_File("assets/spindle.obj"),
                     'disk': new defs.Shape_From_File("assets/disk.obj"),
                      'lid': new defs.Shape_From_File("assets/lid.obj"),
                      };
+    //this.shapes.push({ 'record': new Flat_Obj("assets/mainRecordPlayer.obj")});
 
                                                         // TODO (#1d): Modify one sphere shape's existing texture 
                                                         // coordinates in place.  Multiply them all by 5.
@@ -53,6 +56,7 @@ class Solar_System extends Scene
       const wire_shader = new Wireframe_Shader();
       const funny_shader = new defs.Funny_Shader();
       const water_shader = new Water_Shader();
+      const cloud_shader = new Cloud_Shader();
                                               // *** Materials: *** wrap a dictionary of "options" for a shader.
 
                                               // TODO (#2):  Complete this list with any additional materials you need:
@@ -71,6 +75,8 @@ class Solar_System extends Scene
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
                              glow: new Material(wire_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.3,.1,.9,1)}),
                              water: new Material(water_shader, {ambient:.8,diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.9,1.)}),
+                             wood: new Material(texture_shader, {texture: new Texture("assets/earth.gif"), ambient: 1., diffusivity: .5, specularity:.5}),
+                     betterWater: new Material(cloud_shader,{ambient:1, diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.5,1.)}),
                        };
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
@@ -209,21 +215,22 @@ class Solar_System extends Scene
       //this.shapes.ball_4.draw( context, program_state, model_transform, this.materials.metal_earth.override( blue ) );
       model_transform = model_transform.post_multiply(Mat4.translation([0,-2,0]));
       model_transform = model_transform.post_multiply(Mat4.scale([4,4,4]));
-      this.shapes.record.draw(context, program_state, model_transform, this.materials.plastic.override({color:Color.of(.25882,.1882,.1176,1)}));
+      this.shapes.record.draw(context, program_state, model_transform, this.materials.metal_earth);
       model_transform = model_transform.post_multiply(Mat4.translation([-.45,0,-.45]));
       model_transform = model_transform.post_multiply(Mat4.scale([.8,.8,.8]));
       var saveMatrix = model_transform.copy();
       model_transform = model_transform.post_multiply(Mat4.translation([1.05,0,-1.05]));
       model_transform = model_transform.post_multiply(Mat4.rotation(Math.sin(t)/100.-.05,[1,0,0]));
-      model_transform = model_transform.post_multiply(Mat4.translation([-1.05,0,1.05]));
+      model_transform = model_transform.post_multiply(Mat4.translation([-1.05,.05,1.05]));
       this.shapes.spindle.draw(context, program_state, model_transform, this.materials.plastic.override({color: Color.of(.2,.2,.5,1.)}));
       model_transform = saveMatrix.copy();
       model_transform = model_transform.post_multiply(Mat4.scale([1/.75,1/.75,1/.75]));
-      model_transform = model_transform.post_multiply(Mat4.translation([-.7,-.2,0]));
+      model_transform = model_transform.post_multiply(Mat4.translation([-.72,-.15,0]));
       //model_transform = model_transform.post_multiply(Mat4.scale([2,2,2]));
       // Color.of(.2, .5, .5, .9)
-      //this.shapes.ball_4.draw(context, program_state, model_transform, this.materials.water.override({color:Color.of(.2,.5,.5,.9)}));
-      this.shapes.disk.draw(context, program_state, model_transform, this.materials.water.override({color: Color.of(.1,.3,.4,1)}));
+     // this.shapes.ball_4.draw(context, program_state, model_transform, this.materials.water.override({color:Color.of(.2,.5,.5,.9)}));
+     model_transform = model_transform.post_multiply(Mat4.rotation(t*2,[0,1,0]));
+      this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
       model_transform = model_transform.post_multiply(Mat4.translation([0,.5,0]));
       model_transform = Mat4.identity();
       model_transform = model_transform.post_multiply(Mat4.scale([9.6,9.6,9.6]));
@@ -519,12 +526,124 @@ update_GPU( context, gpu_addresses, program_state, model_transform, material )
             precision highp float;
             varying vec2 vUv;
             varying vec3 vPosition;
-            varying vec4 colorTransfer;
+            varying float colorTransfer;
+            float brightness = 22.;
+            vec2 uvScale = vec2(.06,.06);
             uniform float time;
-            float xScale = 12.;
-            float yScale = 12.;
-            float speed = .4;
-            vec3 dotColor = vec3(.2941176,.5921568,.6549019);
+            float xScale = 1.;
+            float yScale = 1.;
+            float speed = .01;
+            vec3 dotColor = vec3(.0549,.5921568,.7549019);
+            vec3 baseColor = vec3(0.898039, 0.1568,.317);
+
+            varying vec2 f_tex_coord;
+              varying float disp;
+              uniform vec4 sun_color;
+              varying float noise;
+
+
+              vec3 mod289(vec3 x) {
+        return x - floor(x * (1.0 / 289.0)) * 289.0;
+      }
+
+      vec4 mod289(vec4 x) {
+        return x - floor(x * (1.0 / 289.0)) * 289.0;
+      }
+
+      vec4 permute(vec4 x) {
+        return mod289(((x*34.0)+1.0)*x);
+      }
+
+      vec4 taylorInvSqrt(vec4 r) {
+        return 1.79284291400159 - 0.85373472095314 * r;
+      }
+
+      vec3 fade(vec3 t) {
+        return t*t*t*(t*(t*6.0-15.0)+10.0);
+      }
+
+      // Classic Perlin noise
+      float cnoise(vec3 P) {
+        vec3 Pi0 = floor(P); // Integer part for indexing
+        vec3 Pi1 = Pi0 + vec3(1.0); // Integer part + 1
+        Pi0 = mod289(Pi0);
+        Pi1 = mod289(Pi1);
+        vec3 Pf0 = fract(P); // Fractional part for interpolation
+        vec3 Pf1 = Pf0 - vec3(1.0); // Fractional part - 1.0
+        vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
+        vec4 iy = vec4(Pi0.yy, Pi1.yy);
+        vec4 iz0 = Pi0.zzzz;
+        vec4 iz1 = Pi1.zzzz;
+
+        vec4 ixy = permute(permute(ix) + iy);
+        vec4 ixy0 = permute(ixy + iz0);
+        vec4 ixy1 = permute(ixy + iz1);
+
+        vec4 gx0 = ixy0 * (1.0 / 7.0);
+        vec4 gy0 = fract(floor(gx0) * (1.0 / 7.0)) - 0.5;
+        gx0 = fract(gx0);
+        vec4 gz0 = vec4(0.5) - abs(gx0) - abs(gy0);
+        vec4 sz0 = step(gz0, vec4(0.0));
+        gx0 -= sz0 * (step(0.0, gx0) - 0.5);
+        gy0 -= sz0 * (step(0.0, gy0) - 0.5);
+
+        vec4 gx1 = ixy1 * (1.0 / 7.0);
+        vec4 gy1 = fract(floor(gx1) * (1.0 / 7.0)) - 0.5;
+        gx1 = fract(gx1);
+        vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1);
+        vec4 sz1 = step(gz1, vec4(0.0));
+        gx1 -= sz1 * (step(0.0, gx1) - 0.5);
+        gy1 -= sz1 * (step(0.0, gy1) - 0.5);
+
+        vec3 g000 = vec3(gx0.x,gy0.x,gz0.x);
+        vec3 g100 = vec3(gx0.y,gy0.y,gz0.y);
+        vec3 g010 = vec3(gx0.z,gy0.z,gz0.z);
+        vec3 g110 = vec3(gx0.w,gy0.w,gz0.w);
+        vec3 g001 = vec3(gx1.x,gy1.x,gz1.x);
+        vec3 g101 = vec3(gx1.y,gy1.y,gz1.y);
+        vec3 g011 = vec3(gx1.z,gy1.z,gz1.z);
+        vec3 g111 = vec3(gx1.w,gy1.w,gz1.w);
+
+        vec4 norm0 = taylorInvSqrt(vec4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
+        g000 *= norm0.x;
+        g010 *= norm0.y;
+        g100 *= norm0.z;
+        g110 *= norm0.w;
+        vec4 norm1 = taylorInvSqrt(vec4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g011, g011)));
+        g001 *= norm1.x;
+        g011 *= norm1.y;
+        g101 *= norm1.z;
+        g111 *= norm1.w;
+
+        float n000 = dot(g000, Pf0);
+        float n100 = dot(g100, vec3(Pf1.x, Pf0.yz));
+        float n010 = dot(g010, vec3(Pf0.x, Pf1.y, Pf0.z));
+        float n110 = dot(g110, vec3(Pf1.xy, Pf0.z));
+        float n001 = dot(g001, vec3(Pf0.xy, Pf1.z));
+        float n101 = dot(g101, vec3(Pf1.x, Pf0.y, Pf1.z));
+        float n011 = dot(g011, vec3(Pf0.x, Pf1.yz));
+        float n111 = dot(g111, Pf1);
+
+        vec3 fade_xyz = fade(Pf0);
+        vec4 n_z = mix(vec4(n000, n100, n010, n110), vec4(n001, n101, n011, n111), fade_xyz.z);
+        vec2 n_yz = mix(n_z.xy, n_z.zw, fade_xyz.y);
+        float n_xyz = mix(n_yz.x, n_yz.y, fade_xyz.x);
+        return 2.2 * n_xyz;
+      }
+    
+      float surface3 ( vec3 coord ) {
+
+          float frequency = 7.0;
+          float n = 0.4;
+
+          n -= 1.0    * abs( cnoise( coord * frequency ) );
+          n -= 1.5    * abs( cnoise( coord * frequency * 4.0 ) );
+          n -= 1.25   * abs( cnoise( coord * frequency * 4.0 ) );
+
+          return clamp( n, -0.6, 1.0 );
+      }
+      #define PI 3.141592653589793238462643383279
+
       `;
     }
   vertex_glsl_code()           // ********* VERTEX SHADER *********
@@ -532,37 +651,308 @@ update_GPU( context, gpu_addresses, program_state, model_transform, material )
       attribute vec2 texture_coord;
       attribute vec3 position;
       uniform mat4 projection_camera_model_transform;
+      float turbulence( vec3 p ) {
+          float t = -0.5;
+          for (float f = 1.0 ; f <= 10.0 ; f++ ){
+              float power = pow( 2.0, f );
+              t += abs( cnoise( vec3( power * p ) ) / power );
+          }
+          return t;
+      }
+       float fireSpeed = .5;
+      float pulseHeight = 0.0;
+      float displacementHeight = .5;
+      float turbulenceDetail = .7;
+      attribute vec3 normal;
+      attribute vec2 uv;
+      attribute vec2 uv2;
+
+     // void main() {
+       //   noise = -0.8 * turbulence( turbulenceDetail * normal + ( time * .2 ) );
+
+         // float b = pulseHeight * cnoise(
+           //   0.05 * position + vec3( 1.0 * time )
+          //);
+          //float displacement = ( 0.0 - displacementHeight ) * noise + b;
+          //float disp = displacement*30.;
+          //vec3 newPosition = position + normal * displacement;
+          //gl_Position = projection_camera_model_transform * vec4( newPosition, 1.0 );
+      //}
+
         void main(){
-          vPosition = position;
-          vUv = position.xz/15.;
-          vec2 positionBoi = vUv;
-          float offset = time*speed;
-          float a = sin(3.14 * xScale  * positionBoi.x + offset) + cos(3.14 * 50.0 * positionBoi.y);
-	      float b = sin(3.14 * xScale * 5.0 * positionBoi.x) * 1.0;
-	      float c = sin(3.14 * yScale * position.y + offset * 5.0) + cos(3.14 * 50.0 * positionBoi.x);
-	      float d = sin(3.14 * yScale * 4.0 * positionBoi.y + offset * 1.0);
-	      float color = a+b+c+d;
-          vec3 newPosition = position*color;
-          gl_Position = projection_camera_model_transform * vec4(newPosition,1.0);
+          //vPosition = position;
+          vUv = vec2((pow(position.x,1.)), pow(position.z,1.))/2.;
+          vec2 uvMax = ( 2.0 * asin( sin( 2.0 * PI * vUv ) ) ) / PI;
+    
+          float n = surface3(vec3(uvMax * uvScale, time * speed));
+
+           vec3 s = vec3( clamp( n, 0.0, 1.0 ) ) * dotColor * brightness;
+           float mag = sqrt(s.x*s.x+s.y*s.y+s.z*s.z);
+          vec4 newPosition = vec4(position.x, position.y*mag/5. + position.y,position.z, 1.0);
+          gl_Position = projection_camera_model_transform*newPosition;
+
+
+
+          //vec2 positionBoi = vUv;
+          //float offset = time*speed;
+          //float a = sin(3.14 * xScale  * positionBoi.x + offset) + cos(3.14 * 50.0 * positionBoi.y);
+	      //float b = sin(3.14 * xScale * 5.0 * positionBoi.x) * 1.0;
+	      //float c = sin(3.14 * yScale * position.y + offset * 5.0) + cos(3.14 * 50.0 * positionBoi.x);
+	      //float d = sin(3.14 * yScale * 4.0 * positionBoi.y + offset * 1.0);
+	      //float color = a+b+c+d;
+          //vec3 newPosition = vec3(position.x, position.y*color, position.z);
+          //colorTransfer = color*position.y;
+          //gl_Position = projection_camera_model_transform * vec4(newPosition,1.0);
         }
        `;
           }
   fragment_glsl_code()           // ********* FRAGMENT SHADER *********
     { return this.shared_glsl_code() + `
-    
+  
     void main(){
-          vec2 position = vUv;
-          float offset = time*speed;
-          float a = sin(3.14 * xScale  * position.x + offset) + cos(3.14 * 50.0 * position.y);
-	      float b = sin(3.14 * xScale * 5.0 * position.x) * 1.0;
-	      float c = sin(3.14 * yScale * position.y + offset * 5.0) + cos(3.14 * 50.0 * position.x);
-	      float d = sin(3.14 * yScale * 4.0 * position.y + offset * 1.0);
-	      float color = a+b+c+d;
-	      gl_FragColor = vec4(dotColor*color,1.0);
+        //vec2 position = vUv;
+	     //float offset = time * speed;
+	     //float a = sin(3.14 * xScale  * position.x + offset) + cos(3.14 * 50.0 * position.y);
+	     //float b = sin(3.14 * xScale * 5.0 * position.x) * 1.0 ;
+          //float c = sin(3.14 * yScale * position.y + offset * 5.0) + cos(3.14 * 50.0 * position.x);
+          //float d = sin(3.14 * yScale * 4.0 * position.y + offset * 1.0);
+          //float color = a + b + c + d;
+	     //float diffR = baseColor.r - dotColor.r;
+	     //float diffG = baseColor.g  - dotColor.g;
+	     //float diffB = baseColor.b - dotColor.b;
+	     //gl_FragColor = vec4(dotColor + vec3(diffR,diffG,diffB)*(color-.9)/7., 1.0);
+        //gl_FragColor = vec4(1.,1.,1.,1.);
+        vec2 uvMax = ( 2.0 * asin( sin( 2.0 * PI * vUv ) ) ) / PI;
+    
+        float n = surface3(vec3(uvMax * uvScale, time * speed));
+
+        vec3 s = vec3( clamp( n, 0.0, 1.0 ) ) * dotColor * brightness;
+        float diffX = baseColor.r - dotColor.r;
+        float diffY = baseColor.g - dotColor.g;
+        float diffZ = baseColor.b - dotColor.b;
+
+        gl_FragColor = vec4(dotColor+n*vec3(.5-diffX,.5-diffY,.5-diffY)*.5, 1. );
+
+       // float ratio = .7 + .5*sin(2.*3.14159*colorTransfer/5.);
+	     // gl_FragColor = vec4(dotColor(colorTransfer+.1)*2.,colorTransfer*20.+.2);
     }
 
         `;
     }
+
+
+}
+
+
+
+const Cloud_Shader = defs.Cloud_Shader =
+class Cloud_Shader extends Shader{
+
+send_material( gl, gpu, material )
+    {                                       // send_material(): Send the desired shape-wide material qualities to the
+                                            // graphics card, where they will tweak the Phong lighting formula.                                      
+      gl.uniform4fv( gpu.color,    material.color       );
+      gl.uniform1f ( gpu.ambient,        material.ambient     );
+      gl.uniform1f ( gpu.diffusivity,    material.diffusivity );
+      gl.uniform1f ( gpu.specularity,    material.specularity );
+      gl.uniform1f ( gpu.smoothness,     material.smoothness  );
+    }
+
+
+update_GPU( context, gpu_addresses, program_state, model_transform, material )
+    {
+                      // TODO (#EC 2): Pass the same information to the shader as for EC part 1.  Additionally
+                      // pass material.color to the shader.
+     const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
+                      PCM = P.times( C ).times( M );
+        context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D( PCM.transposed() ) );
+        context.uniform1f ( gpu_addresses.time, program_state.animation_time / 1000 );  
+        context.uniform1f(gpu_addresses.sun_color, material.color);  
+        const defaults = { color: Color.of( 0,0,0,1 ), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40 };
+        material = Object.assign( {}, defaults, material );
+        this.send_material ( context, gpu_addresses, material );
+    }
+                                // TODO (#EC 2):  Complete the shaders, displacing the input sphere's vertices as
+                                // a fireball effect and coloring fragments according to displacement.
+
+  shared_glsl_code()            // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
+    { return `precision highp float;
+            uniform mat4 projection_camera_model_transform;
+            #define F4 0.309016994374947451
+            #define PI 3.14159
+            uniform float time;
+            vec2 uvScale = vec2(.1,.1);
+            float speed = .01;
+            uniform vec4 color;
+            varying vec2 vUv;
+            vec4 mod289(vec4 x) {
+                return x - floor(x * (1.0 / 289.0)) * 289.0;
+            }
+
+            float mod289(float x) {
+                return x - floor(x * (1.0 / 289.0)) * 289.0;
+            }
+
+            vec4 permute(vec4 x) {
+                return mod289(((x*34.0)+1.0)*x);
+            }
+
+            float permute(float x) {
+                return mod289(((x*34.0)+1.0)*x);
+            }
+
+            vec4 taylorInvSqrt(vec4 r) {
+                return 1.79284291400159 - 0.85373472095314 * r;
+            }
+
+            float taylorInvSqrt(float r) {
+                return 1.79284291400159 - 0.85373472095314 * r;
+            }
+
+            vec4 grad4(float j, vec4 ip) {
+                const vec4 ones = vec4(1.0, 1.0, 1.0, -1.0);
+                vec4 p,s;
+
+                p.xyz = floor( fract (vec3(j) * ip.xyz) * 7.0) * ip.z - 1.0;
+                p.w = 1.5 - dot(abs(p.xyz), ones.xyz);
+                s = vec4(lessThan(p, vec4(0.0)));
+                p.xyz = p.xyz + (s.xyz*2.0 - 1.0) * s.www;
+
+                return p;
+            }
+
+            float snoise(vec4 v) {
+                const vec4  C = vec4( 0.138196601125011,  // (5 - sqrt(5))/20  G4
+                        0.276393202250021,  // 2 * G4
+                        0.414589803375032,  // 3 * G4
+                        -0.447213595499958); // -1 + 4 * G4
+
+                // First corner
+                vec4 i  = floor(v + dot(v, vec4(F4)) );
+                vec4 x0 = v -   i + dot(i, C.xxxx);
+
+                // Other corners
+
+                // Rank sorting originally contributed by Bill Licea-Kane, AMD (formerly ATI)
+                vec4 i0;
+                vec3 isX = step( x0.yzw, x0.xxx );
+                vec3 isYZ = step( x0.zww, x0.yyz );
+                //  i0.x = dot( isX, vec3( 1.0 ) );
+                i0.x = isX.x + isX.y + isX.z;
+                i0.yzw = 1.0 - isX;
+                //  i0.y += dot( isYZ.xy, vec2( 1.0 ) );
+                i0.y += isYZ.x + isYZ.y;
+                i0.zw += 1.0 - isYZ.xy;
+                i0.z += isYZ.z;
+                i0.w += 1.0 - isYZ.z;
+
+                // i0 now contains the unique values 0,1,2,3 in each channel
+                vec4 i3 = clamp( i0, 0.0, 1.0 );
+                vec4 i2 = clamp( i0-1.0, 0.0, 1.0 );
+                vec4 i1 = clamp( i0-2.0, 0.0, 1.0 );
+
+                //  x0 = x0 - 0.0 + 0.0 * C.xxxx
+                //  x1 = x0 - i1  + 1.0 * C.xxxx
+                //  x2 = x0 - i2  + 2.0 * C.xxxx
+                //  x3 = x0 - i3  + 3.0 * C.xxxx
+                //  x4 = x0 - 1.0 + 4.0 * C.xxxx
+                vec4 x1 = x0 - i1 + C.xxxx;
+                vec4 x2 = x0 - i2 + C.yyyy;
+                vec4 x3 = x0 - i3 + C.zzzz;
+                vec4 x4 = x0 + C.wwww;
+
+                // Permutations
+                i = mod289(i);
+                float j0 = permute( permute( permute( permute(i.w) + i.z) + i.y) + i.x);
+                vec4 j1 = permute( permute( permute( permute (
+                                    i.w + vec4(i1.w, i2.w, i3.w, 1.0 ))
+                                + i.z + vec4(i1.z, i2.z, i3.z, 1.0 ))
+                            + i.y + vec4(i1.y, i2.y, i3.y, 1.0 ))
+                        + i.x + vec4(i1.x, i2.x, i3.x, 1.0 ));
+
+                // Gradients: 7x7x6 points over a cube, mapped onto a 4-cross polytope
+                // 7*7*6 = 294, which is close to the ring size 17*17 = 289.
+                vec4 ip = vec4(1.0/294.0, 1.0/49.0, 1.0/7.0, 0.0) ;
+
+                vec4 p0 = grad4(j0,   ip);
+                vec4 p1 = grad4(j1.x, ip);
+                vec4 p2 = grad4(j1.y, ip);
+                vec4 p3 = grad4(j1.z, ip);
+                vec4 p4 = grad4(j1.w, ip);
+
+                // Normalise gradients
+                vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+                p0 *= norm.x;
+                p1 *= norm.y;
+                p2 *= norm.z;
+                p3 *= norm.w;
+                p4 *= taylorInvSqrt(dot(p4,p4));
+
+                // Mix contributions from the five corners
+                vec3 m0 = max(0.6 - vec3(dot(x0,x0), dot(x1,x1), dot(x2,x2)), 0.0);
+                vec2 m1 = max(0.6 - vec2(dot(x3,x3), dot(x4,x4)            ), 0.0);
+                m0 = m0 * m0;
+                m1 = m1 * m1;
+                return 49.0 * ( dot(m0*m0, vec3( dot( p0, x0 ), dot( p1, x1 ), dot( p2, x2 )))
+                        + dot(m1*m1, vec2( dot( p3, x3 ), dot( p4, x4 ) ) ) ) ;
+
+            }
+
+
+            float surface( vec4 coord ) {
+
+              float n = 0.0;
+
+              n += 0.25 * abs( snoise( coord * 4.0 ) );
+              n += 0.5 * abs( snoise( coord * 8.0 ) );
+              n += 0.25 * abs( snoise( coord * 16.0 ) );
+              n += 0.125 * abs( snoise( coord * 32.0 ) );
+
+              return n;
+
+            }
+      `;
+    }
+  vertex_glsl_code()           // ********* VERTEX SHADER *********
+    {  return this.shared_glsl_code() + `
+attribute vec3 position;
+
+    void main(){
+      vUv = position.xz;
+      float s = vUv.x * uvScale.x;
+      float t = vUv.y * uvScale.y;
+      float multiplier = 1.0 / ( 2.0 * PI );
+      float nx = cos( s * 2.0 * PI ) * multiplier;
+      float ny = cos( t * 2.0 * PI ) * multiplier;
+      float nz = sin( s * 2.0 * PI ) * multiplier;
+      float nw = sin( t * 2.0 * PI ) * multiplier;
+      float surf = surface( vec4( nx, ny, nz, nw ) + time * speed );
+      vec4 newPos = vec4(position.x,position.y*surf*10.,position.z,1.0);
+    gl_Position = projection_camera_model_transform * vec4(newPos);
+
+
+    }
+       `;
+          }
+  fragment_glsl_code()           // ********* FRAGMENT SHADER *********
+    { return this.shared_glsl_code() + `
+
+       void main() {
+
+          float s = vUv.x * uvScale.x;
+          float t = vUv.y * uvScale.y;
+          float multiplier = 1.0 / ( 2.0 * PI );
+          float nx = cos( s * 2.0 * PI ) * multiplier;
+          float ny = cos( t * 2.0 * PI ) * multiplier;
+          float nz = sin( s * 2.0 * PI ) * multiplier;
+          float nw = sin( t * 2.0 * PI ) * multiplier;
+          float surf = surface( vec4( nx, ny, nz, nw ) + time * speed );
+
+          gl_FragColor = vec4( color*.3+color * vec4( surf,surf,surf,.4 )*1.5);
+
+      }`;
+    }
+
 
 
 }
