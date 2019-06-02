@@ -19,6 +19,12 @@ class Solar_System extends Scene
                                                         // definitions onto the GPU.  NOTE:  Only do this ONCE per shape.
                                                         // Don't define blueprints for shapes in display() every frame.
 
+      this.scratchpad = document.createElement("canvas");
+      this.scratchpad_context = this.scratchpad.getContext("2d");
+      this.scratchpad.width = 1024;
+      this.scratchpad.height = 1024;
+      this.texture = new Texture("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
+
                                                 // TODO (#1):  Complete this list with any additional shapes you need.
       this.shapes = { 'box' : new Cube(),
                    'ball_4' : new Subdivision_Sphere( 4 ),
@@ -59,6 +65,7 @@ class Solar_System extends Scene
 
                                               // TODO (#2):  Complete this list with any additional materials you need:
 
+      this.pixelation = 100;
       this.materials = { plastic: new Material( phong_shader, 
                                     { ambient: 0, diffusivity: 1, specularity: 0, color: Color.of( 1,.5,1,1 ) } ),
                    plastic_stars: new Material( texture_shader_2,    
@@ -73,6 +80,7 @@ class Solar_System extends Scene
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
                              glow: new Material(wire_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.3,.1,.9,1)}),
                              water: new Material(water_shader, {ambient:.8,diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.9,1.)}),
+                        pixelate: new Material(pixel_shader, {ambient: 1, diffusivity: 1, specularity: 0, texture: this.texture, color: Color.of( 0,0,0,1 ), pixels: this.pixelation } ),
                        };
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
@@ -89,7 +97,12 @@ class Solar_System extends Scene
                                       // buttons with key bindings for affecting this scene, and live info readouts.
 
                                  // TODO (#5b): Add a button control.  Provide a callback that flips the boolean value of "this.lights_on".
-       // this.key_triggered_button( 
+       this.key_triggered_button("Increase pixelation", [ "m" ], () => {
+        this.pixelation -= 2;
+       }, "green");
+       this.key_triggered_button("Decrease pixelation", [ "n" ], () => {
+        this.pixelation += 2;
+       }, "red");
     }
   display( context, program_state )
     {                                                // display():  Called once per frame of animation.  For each shape that you want to
@@ -233,7 +246,35 @@ class Solar_System extends Scene
       //model_transform = model_transform.post_multiply(Mat4.translation([0,.6,0]));
       this.shapes.lid.draw(context, program_state, model_transform, this.materials.plastic.override({color:Color.of(.4,.4,.4,.5)}));
 
-      //this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic_stars.override( yellow ) );
+      // two-pass rendering
+      this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
+      this.texture.image.src = this.scratchpad.toDataURL("image/png");
+
+      if (this.skipped_first_frame)
+        this.texture.copy_onto_graphics_card(context.context, false);
+      this.skipped_first_frame = true;
+
+      context.context.clear(context.context.COLOR_BUFFER_BIT | context.context.DEPTH_BUFFER_BIT);
+
+      model_transform = Mat4.identity();
+      // model_transform = program_state.camera_transform.post_multiply(Mat4.rotation(Math.PI/2, [1,0,0]));
+      let camera_i = program_state.camera_transform.times(Vec.of(1,0,1,0)).to3().normalized();
+      let camera_j = program_state.camera_transform.times(Vec.of(0,1,0,0)).to3().normalized();
+      let camera_k = program_state.camera_transform.times(Vec.of(0,0,1,0)).to3().normalized();
+      let camera_p = program_state.camera_transform.times(Vec.of(0,0,0,1)).to3();
+
+      let translate = camera_p.plus(camera_k.times(-8));
+
+      model_transform.post_multiply(Mat4.identity()
+        // .times(program_state.camera_transform)
+        // .times(Mat4.translation(Vec.of(0,0,-10)))
+        // .times(Mat4.translation(camera_loc + Vec.of(0,0,-10)))
+        // .times(Mat4.translation(translate))
+        .times(Mat4.inverse(Mat4.look_at(translate, camera_p, camera_j)))
+        .times(Mat4.rotation(Math.PI/2, [1,0,0]))
+        .times(Mat4.scale([-5.22,1,2.9]))
+        );
+      this.shapes.box.draw(context, program_state, model_transform, this.materials.pixelate.override({pixels: this.pixelation}));
 
       // ***** END TEST SCENE *****
 
@@ -871,7 +912,7 @@ class Pixel_Shader extends defs.Textured_Phong
 
         vec3 bumped_N  = N + tex_color.rgb - .5*vec3(1,1,1);
 
-        gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w );
+        gl_FragColor = vec4( ( tex_color.xyz ) * ambient, tex_color.w );
 
         gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
       }
