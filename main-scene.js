@@ -2,7 +2,34 @@ import {tiny, defs} from './assignment-4-resources.js';
                                                                 // Pull these names into this module's scope for convenience:
 const { Vec, Mat, Mat4, Color, Light, Shape, Shader, Material, Texture,
          Scene, Canvas_Widget, Code_Widget, Text_Widget } = tiny;
-const { Cube, Subdivision_Sphere, Transforms_Sandbox_Base } = defs;
+const { Cube, Subdivision_Sphere, Transforms_Sandbox_Base, Square } = defs;
+
+function randomNum(min,max)
+  {
+      return Math.floor((Math.random() * (max-min) + min) * 100) / 100 ;
+  }
+
+const Part = defs.part =
+class Part extends Square
+{
+  constructor()
+  {
+    super();
+
+    for( var i = 0; i < 1000; i++ )
+        { 
+          let factor = 300.0;
+          let factor2 = factor / 2.0;   
+          let num = randomNum(0.1, 1.3);   
+              
+          var square_transform = Mat4.translation([ factor*Math.random()-factor2, factor*Math.random()-factor2, factor*Math.random()-factor2 ])
+                                     .times( Mat4.scale([ num, num, num ]) );
+                                     
+          Square.insert_transformed_copy_into( this, [], square_transform );
+        }
+     
+  }
+}
 
     // Now we have loaded everything in the files tiny-graphics.js, tiny-graphics-widgets.js, and assignment-4-resources.js.
     // This yielded "tiny", an object wrapping the stuff in the first two files, and "defs" for wrapping all the rest.
@@ -23,7 +50,9 @@ class Solar_System extends Scene
       this.shapes = { 'box' : new Cube(),
                    'ball_4' : new Subdivision_Sphere( 4 ),
                      'star' : new Planar_Star(),
-                     'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),};
+                     'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),
+                   'particle': new Part()
+                     };
 
                                                         // TODO (#1d): Modify one sphere shape's existing texture 
                                                         // coordinates in place.  Multiply them all by 5.
@@ -48,15 +77,18 @@ class Solar_System extends Scene
       const sun_shader        = new Sun_Shader();
       const wire_shader = new Wireframe_Shader();
       const funny_shader = new defs.Funny_Shader();
+      const particle_shader = new Particle_Shader();
+
+
                                               // *** Materials: *** wrap a dictionary of "options" for a shader.
 
                                               // TODO (#2):  Complete this list with any additional materials you need:
 
       this.materials = { plastic: new Material( phong_shader, 
-                                    { ambient: 0, diffusivity: 1, specularity: 0, color: Color.of( 1,.5,1,1 ) } ),
+                                    { ambient: 0.3, diffusivity: 1, specularity: 0, color: Color.of( 1,.5,1,1 ) } ),
                    plastic_stars: new Material( texture_shader_2,    
                                     { texture: new Texture( "assets/stars.png" ),
-                                      ambient: 0, diffusivity: 1, specularity: 0, color: Color.of( .4,.4,.4,1 ) } ),
+                                      ambient: 0.3, diffusivity: 1, specularity: 0, color: Color.of( .4,.4,.4,1 ) } ),
                            metal: new Material( phong_shader,
                                     { ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( 1,.5,1,1 ) } ),
                      metal_earth: new Material( texture_shader_2,    
@@ -64,7 +96,9 @@ class Solar_System extends Scene
                                       ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( .4,.4,.4,1 ) } ),
                       black_hole: new Material( black_hole_shader ),
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
-                             glow: new Material(phong_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.5,.1,.7,1)}),
+                            glow: new Material( phong_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.5,.1,.7,1)}),
+                           shiny: new Material( phong_shader, {ambient: .8, diffusivity: .8, specularity: .8, color: Color.of(102/255,1,204/255,1)})
+
                        };
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
@@ -139,59 +173,36 @@ class Solar_System extends Scene
                                     // It starts over as the identity every single frame - coordinate axes at the origin.
       let model_transform = Mat4.identity();
 
-                                                  // TODO (#3b):  Use the time-varying value of sun_size to create a scale matrix 
-                                                  // for the sun. Also use it to create a color that turns redder as sun_size
-                                                  // increases, and bluer as it decreases.
-      const smoothly_varying_ratio = .5 + .5 * Math.sin( 2 * Math.PI * t/10 ),
-            sun_size = 1 + 2 * smoothly_varying_ratio,
-                 sun = undefined,
-           sun_color = undefined;
 
-      this.materials.sun.color = sun_color;     // Assign our current sun color to the existing sun material.          
-
-                                                // *** Lights: *** Values of vector or point lights.  They'll be consulted by 
-                                                // the shader when coloring shapes.  See Light's class definition for inputs.
-
-                                                // TODO (#3c):  Replace with a point light located at the origin, with the sun's color
-                                                // (created above).  For the third argument pass in the point light's size.  Use
-                                                // 10 to the power of sun_size.
+     
       program_state.lights = [ new Light( Vec.of( 0,0,0,1 ), Color.of( 1,1,1,1 ), 100000 ) ];
-
-                            // TODO (#5c):  Throughout your program whenever you use a material (by passing it into draw),
-                            // pass in a modified version instead.  Call .override( modifier ) on the material to
-                            // generate a new one that uses the below modifier, replacing the ambient term with a 
-                            // new value based on our light switch.                         
+           
       const modifier = this.lights_on ? { ambient: 0.3 } : { ambient: 0.0 };
 
-                                                // TODO (#3d):   Draw the sun using its matrix (crated by you above) and material.
-     
-                                                // TODO (#4d1):  Draw planet 1 orbiting at 5 units radius, revolving AND rotating at 1 radian/sec.
       
-                                                // TODO (#4d2):  Draw planet 2 orbiting 3 units farther, revolving AND rotating slower.
+      const smoothly_varying_ratio = .5 + .5 * Math.sin( 2 * Math.PI * t/10 ),
+            sun_size = 1 + 2 * smoothly_varying_ratio,
+            sun_color = blue.times(1-smoothly_varying_ratio).plus(yellow.times(smoothly_varying_ratio));
+      this.materials.shiny.color = sun_color; 
       
-                                                // TODO (#6b1):  Draw moon 1 orbiting 2 units away from planet 2, revolving AND rotating.
       
-                                                // TODO (#4d3):  Draw planet 3 orbiting 3 units farther, revolving AND rotating slower.
-      
-                                                // TODO (#6b2):  Draw moon 2 orbiting 2 units away from planet 3, revolving AND rotating.
-     
-                                                // TODO (#4d4):  Draw planet 4
-      
-                                                // TODO (#4d5):  Draw planet 5
-      
-                                                // TODO (#5a): If the light switch is on, loop through star_matrices and draw 2D stars.
-      
-                                                // TODO (#7b): Give the child scene (camera_teleporter) the *inverted* matrices
-                                                // for each of your objects, mimicking the examples above.  Tweak each
-                                                // matrix a bit so you can see the planet, or maybe appear to be standing
-                                                // on it.  Remember the moons.
-      // this.camera_teleporter.cameras.push( Mat4.inverse( 
+      model_transform.post_multiply( Mat4.translation([ 0, -4, 0 ]) );
+      this.shapes.record.draw(context, program_state, model_transform, this.materials.glow);
+
+      let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
+
+      // .post_multiply( Mat4.translation(position_of_camera) );
+      model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
+      this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
+
+      model_transform.post_multiply( Mat4.translation([5,5,5]) );
+      this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override( blue ) );
 
 
 
 
       // ***** BEGIN TEST SCENE *****               
-                                          // TODO:  Delete (or comment out) the rest of display(), starting here:
+      /*
 
       program_state.set_camera( Mat4.translation([ 0,3,-10 ]) );
       const angle = Math.sin( t );
@@ -200,18 +211,24 @@ class Solar_System extends Scene
       model_transform = Mat4.identity();
       this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic.override( yellow ) );
       model_transform.post_multiply( Mat4.translation([ 0, -4, 0 ]) );
-      //this.shapes.ball_4.draw( context, program_state, model_transform, this.materials.metal_earth.override( blue ) );
-      this.shapes.record.draw(context, program_state, model_transform, this.materials.glow);
-      model_transform.post_multiply( Mat4.rotation( t, Vec.of( 0,1,0 ) ) )
-      model_transform.post_multiply( Mat4.rotation( 1, Vec.of( 0,0,1 ) )
-                             .times( Mat4.scale      ([ 1,   2, 1 ]) )
-                             .times( Mat4.translation([ 0,-1.5, 0 ]) ) );
-      this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic_stars.override( yellow ) );
+      this.shapes.ball_4.draw( context, program_state, model_transform, this.materials.metal_earth.override( blue ) );
+      //this.shapes.record.draw(context, program_state, model_transform, this.materials.glow);
+
+
+//       model_transform.post_multiply( Mat4.rotation( t, Vec.of( 0,1,0 ) ) )
+//       model_transform.post_multiply( Mat4.rotation( 1, Vec.of( 0,0,1 ) )
+//                              .times( Mat4.scale      ([ 1,   2, 1 ]) )
+//                              .times( Mat4.translation([ 0,-1.5, 0 ]) ) );
+      //this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic_stars.override( yellow ) );
+
+      model_transform.post_multiply( Mat4.translation([ 0,2, 0 ]) );
+      this.shapes.particle.draw( context, program_state, model_transform, this.materials.plastic_stars.override( blue ) );
+      
 
       // ***** END TEST SCENE *****
 
       // Warning: Get rid of the test scene, or else the camera position and movement will not work.
-
+      */
 
 
     }
@@ -442,6 +459,41 @@ class Sun_Shader extends Shader
     }
                                 // TODO (#EC 2):  Complete the shaders, displacing the input sphere's vertices as
                                 // a fireball effect and coloring fragments according to displacement.
+
+  shared_glsl_code()            // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
+    { return `precision mediump float;
+                            
+      `;
+    }
+  vertex_glsl_code()           // ********* VERTEX SHADER *********
+    { return this.shared_glsl_code() + `
+
+        void main()
+        {
+
+        }`;
+    }
+  fragment_glsl_code()           // ********* FRAGMENT SHADER *********
+    { return this.shared_glsl_code() + `
+        void main() 
+        {
+
+        } ` ;
+    }
+}
+
+const Particle_Shader = defs.Particle_Shader = 
+class Particle_Shader extends Shader
+{ update_GPU( context, gpu_addresses, graphics_state, model_transform, material )
+    {
+      const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
+                          PCM = P.times( C ).times( M );
+      context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D( PCM.transposed() ) );
+      context.uniform1f ( gpu_addresses.animation_time, program_state.animation_time / 1000 ); 
+      context.uniform1f ( gpu_addresses.smoothly_varying_ratio, program_state.smoothly_varying_ratio ); 
+      context.uniform4fv( gpu_addresses.sun_color, material.color );
+
+    }
 
   shared_glsl_code()            // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
     { return `precision mediump float;
