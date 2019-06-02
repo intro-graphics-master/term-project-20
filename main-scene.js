@@ -52,7 +52,9 @@ class Solar_System extends Scene
       const sun_shader        = new Sun_Shader();
       const wire_shader = new Wireframe_Shader();
       const funny_shader = new defs.Funny_Shader();
+      const pixel_shader = new Pixel_Shader();
       const water_shader = new Water_Shader();
+      
                                               // *** Materials: *** wrap a dictionary of "options" for a shader.
 
                                               // TODO (#2):  Complete this list with any additional materials you need:
@@ -840,4 +842,39 @@ void main() {
         gl_FragColor *= sun_color;
         }`;
     }
+}
+
+const Pixel_Shader = defs.Pixel_Shader =
+class Pixel_Shader extends defs.Textured_Phong
+{
+  update_GPU( context, gpu_addresses, gpu_state, model_transform, material ) {
+    super.update_GPU( context, gpu_addresses, gpu_state, model_transform, material );
+
+    context.uniform2fv(gpu_addresses.viewport_res, Vec.of(context.width, context.height))
+    context.uniform1f(gpu_addresses.pixels, material.pixels ? material.pixels : 50);
+  }
+
+  fragment_glsl_code() {
+    return this.shared_glsl_code() + `
+      varying vec2 f_tex_coord;
+      uniform sampler2D texture;
+      uniform vec2 viewport_res;
+      uniform float pixels;
+
+      void main() {
+        float d = 1.0 / pixels;
+        float aspect_ratio = viewport_res.x / viewport_res.y;
+        float u = floor(f_tex_coord.x / d) * d;
+        float v = floor(f_tex_coord.y / d) * d;
+
+        vec4 tex_color = texture2D(texture, vec2(u,v));
+
+        vec3 bumped_N  = N + tex_color.rgb - .5*vec3(1,1,1);
+
+        gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w );
+
+        gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
+      }
+    `;
+  }
 }
