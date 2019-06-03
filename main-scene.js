@@ -2,7 +2,64 @@ import {tiny, defs} from './assignment-4-resources.js';
                                                                 // Pull these names into this module's scope for convenience:
 const { Vec, Mat, Mat4, Color, Light, Shape, Shader, Material, Texture,
          Scene, Canvas_Widget, Code_Widget, Text_Widget } = tiny;
-const { Cube, Subdivision_Sphere, Transforms_Sandbox_Base } = defs;
+const { Cube, Subdivision_Sphere, Transforms_Sandbox_Base, Square } = defs;
+
+function randomNum(min,max)
+  {
+      return Math.floor((Math.random() * (max-min) + min) * 100) / 100 ;
+  }
+
+const Part = defs.part =
+class Part extends Square
+{
+  constructor()
+  {
+    super();
+
+    var part_array = [];
+    var xCenter, yCenter, zCenter;
+    this.arrays.center = new Array;
+    this.arrays.billboardOffset = new Array;
+    this.arrays.billboardOffset.push(Vec.of(-1,-1,0));
+    this.arrays.billboardOffset.push(Vec.of(1,-1,0));
+    this.arrays.billboardOffset.push(Vec.of(-1,1,0));
+    this.arrays.billboardOffset.push(Vec.of(1,1,0));
+    this.arrays.center.push(Vec.of(0,0,0));
+    this.arrays.center.push(Vec.of(0,0,0));
+    this.arrays.center.push(Vec.of(0,0,0));
+    this.arrays.center.push(Vec.of(0,0,0));
+
+    for( var i = 0; i < 1000; i++ )
+        { 
+          
+          let factor = 300.0;
+          let factor2 = factor / 2;   
+          let num = randomNum(0.1, 1.3);   
+              
+          var square_transform = Mat4.translation([ factor*Math.random()-factor2, factor*Math.random()-factor2, factor*Math.random()-factor2 ])
+                                     .times( Mat4.scale([ num, num, num ]) );
+                                     
+          Square.insert_transformed_copy_into( this, part_array, square_transform );
+
+          this.arrays.billboardOffset.push(Vec.of(-1,-1,0));
+          this.arrays.billboardOffset.push(Vec.of(1,-1,0));
+          this.arrays.billboardOffset.push(Vec.of(-1,1,0));
+          this.arrays.billboardOffset.push(Vec.of(1,1,0));
+
+          var j = i*4;
+            let xCenter = (this.arrays.position[j][0] + this.arrays.position[j+1][0] + this.arrays.position[j+2][0] + this.arrays.position[j+3][0])/4;
+            let yCenter = (this.arrays.position[j][1] + this.arrays.position[j+1][1] + this.arrays.position[j+2][1] + this.arrays.position[j+3][1])/4;
+            let zCenter = (this.arrays.position[j][2] + this.arrays.position[j+1][2] + this.arrays.position[j+2][2] + this.arrays.position[j+3][2])/4;
+
+          this.arrays.center.push(Vec.of(xCenter, yCenter, zCenter));
+          this.arrays.center.push(Vec.of(xCenter, yCenter, zCenter));
+          this.arrays.center.push(Vec.of(xCenter, yCenter, zCenter));
+          this.arrays.center.push(Vec.of(xCenter, yCenter, zCenter));
+
+
+        }
+  }
+}
 
     // Now we have loaded everything in the files tiny-graphics.js, tiny-graphics-widgets.js, and assignment-4-resources.js.
     // This yielded "tiny", an object wrapping the stuff in the first two files, and "defs" for wrapping all the rest.
@@ -29,6 +86,7 @@ class Solar_System extends Scene
       this.shapes = { 'box' : new Cube(),
                    'ball_4' : new Subdivision_Sphere( 4 ),
                      'star' : new Planar_Star(),
+                   'particle': new Part(),
                     'record': new defs.Shape_From_File("assets/mainRecordPlayer.obj"),
                    'spindle': new defs.Shape_From_File("assets/spindle.obj"),
                     'disk': new defs.Shape_From_File("assets/disk.obj"),
@@ -58,9 +116,10 @@ class Solar_System extends Scene
       const sun_shader        = new Sun_Shader();
       const wire_shader = new Wireframe_Shader();
       const funny_shader = new defs.Funny_Shader();
+      const particle_shader = new Particle_Shader();
       const pixel_shader = new Pixel_Shader();
       const water_shader = new Water_Shader();
-      
+
                                               // *** Materials: *** wrap a dictionary of "options" for a shader.
 
                                               // TODO (#2):  Complete this list with any additional materials you need:
@@ -71,10 +130,10 @@ class Solar_System extends Scene
       };
 
       this.materials = { plastic: new Material( phong_shader, 
-                                    { ambient: 0, diffusivity: 1, specularity: 0, color: Color.of( 1,.5,1,1 ) } ),
+                                    { ambient: 0.3, diffusivity: 1, specularity: 0, color: Color.of( 1,.5,1,1 ) } ),
                    plastic_stars: new Material( texture_shader_2,    
                                     { texture: new Texture( "assets/stars.png" ),
-                                      ambient: 0, diffusivity: 1, specularity: 0, color: Color.of( .4,.4,.4,1 ) } ),
+                                      ambient: 0.3, diffusivity: 1, specularity: 0, color: Color.of( .4,.4,.4,1 ) } ),
                            metal: new Material( phong_shader,
                                     { ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( 1,.5,1,1 ) } ),
                      metal_earth: new Material( texture_shader_2,    
@@ -82,6 +141,7 @@ class Solar_System extends Scene
                                       ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( .4,.4,.4,1 ) } ),
                       black_hole: new Material( black_hole_shader ),
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
+                           shiny: new Material( particle_shader, {ambient: .8, diffusivity: .8, specularity: .8, color: Color.of(102/255,1,204/255,1)}),
                              glow: new Material(wire_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.3,.1,.9,1)}),
                              water: new Material(water_shader, {ambient:.8,diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.9,1.)}),
                         pixelate: new Material(pixel_shader, {ambient: 1, diffusivity: 1, specularity: 0, texture: this.texture, color: Color.of( 0,0,0,1 ), pixels: this.pixelation } ),
@@ -89,7 +149,7 @@ class Solar_System extends Scene
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
                                   // stores 30 random location matrices for drawing stars behind the solar system:
-      this.lights_on = false;
+      this.part_on = false;
       this.star_matrices = [];
       for( let i=0; i<30; i++ )
         this.star_matrices.push( Mat4.rotation( Math.PI/2 * (Math.random()-.5), Vec.of( 0,1,0 ) )
@@ -108,9 +168,11 @@ class Solar_System extends Scene
          if (this.multipass_effects.pixelate) this.pixelation += 2;
        }, "red");
 
-      this.key_triggered_button("Toggle pixelation", [ "b" ], () => {
+       this.key_triggered_button("Toggle pixelation", [ "b" ], () => {
         this.multipass_effects.pixelate ^= 1;
-      })
+       })
+      
+       this.key_triggered_button( "Particles on/off", ["p"], () => this.part_on = !this.part_on);
     }
   display( context, program_state )
     {                                                // display():  Called once per frame of animation.  For each shape that you want to
@@ -163,64 +225,34 @@ class Solar_System extends Scene
       **********************************/         
 
       const blue = Color.of( 0,0,.5,1 ), yellow = Color.of( .5,.5,0,1 );
+      const teal = Color.of(102/255,1,204/255,1);
+      const red = Color.of(1,0,0,1);
+      this.Colors = { 
+              purple: Color.of(130/255., 119/255., 203/255., 1), 
+              light_purple: Color.of(221/255., 211/255., 238/255., 1),
+              blue: Color.of(119/255., 192/255., 203/255., 1)
+            }
+
 
                                     // Variable model_transform will be a local matrix value that helps us position shapes.
                                     // It starts over as the identity every single frame - coordinate axes at the origin.
       let model_transform = Mat4.identity();
 
-                                                  // TODO (#3b):  Use the time-varying value of sun_size to create a scale matrix 
-                                                  // for the sun. Also use it to create a color that turns redder as sun_size
-                                                  // increases, and bluer as it decreases.
-      const smoothly_varying_ratio = .5 + .5 * Math.sin( 2 * Math.PI * t/10 ),
-            sun_size = 1 + 2 * smoothly_varying_ratio,
-                 sun = undefined,
-           sun_color = undefined;
 
-      this.materials.sun.color = sun_color;     // Assign our current sun color to the existing sun material.          
-
-                                                // *** Lights: *** Values of vector or point lights.  They'll be consulted by 
-                                                // the shader when coloring shapes.  See Light's class definition for inputs.
-
-                                                // TODO (#3c):  Replace with a point light located at the origin, with the sun's color
-                                                // (created above).  For the third argument pass in the point light's size.  Use
-                                                // 10 to the power of sun_size.
+     
       program_state.lights = [ new Light( Vec.of( 0,0,0,1 ), Color.of( 1,1,1,1 ), 100000 ) ];
-
-                            // TODO (#5c):  Throughout your program whenever you use a material (by passing it into draw),
-                            // pass in a modified version instead.  Call .override( modifier ) on the material to
-                            // generate a new one that uses the below modifier, replacing the ambient term with a 
-                            // new value based on our light switch.                         
+           
       const modifier = this.lights_on ? { ambient: 0.3 } : { ambient: 0.0 };
 
-                                                // TODO (#3d):   Draw the sun using its matrix (crated by you above) and material.
-     
-                                                // TODO (#4d1):  Draw planet 1 orbiting at 5 units radius, revolving AND rotating at 1 radian/sec.
-      
-                                                // TODO (#4d2):  Draw planet 2 orbiting 3 units farther, revolving AND rotating slower.
-      
-                                                // TODO (#6b1):  Draw moon 1 orbiting 2 units away from planet 2, revolving AND rotating.
-      
-                                                // TODO (#4d3):  Draw planet 3 orbiting 3 units farther, revolving AND rotating slower.
-      
-                                                // TODO (#6b2):  Draw moon 2 orbiting 2 units away from planet 3, revolving AND rotating.
-     
-                                                // TODO (#4d4):  Draw planet 4
-      
-                                                // TODO (#4d5):  Draw planet 5
-      
-                                                // TODO (#5a): If the light switch is on, loop through star_matrices and draw 2D stars.
-      
-                                                // TODO (#7b): Give the child scene (camera_teleporter) the *inverted* matrices
-                                                // for each of your objects, mimicking the examples above.  Tweak each
-                                                // matrix a bit so you can see the planet, or maybe appear to be standing
-                                                // on it.  Remember the moons.
-      // this.camera_teleporter.cameras.push( Mat4.inverse( 
+      var period = 4;
+      var part_color = this.Colors.blue;
+      var part_color2 = this.Colors.purple;
+      var partColors;
 
-
-
-
-      // ***** BEGIN TEST SCENE *****               
-                                          // TODO:  Delete (or comment out) the rest of display(), starting here:
+      const smoothly_varying_ratio = .5 + .5 * Math.sin( 2 * Math.PI * t/4 );
+      // need to fix
+      partColors = part_color.times(1-smoothly_varying_ratio).plus(part_color2.times(smoothly_varying_ratio));
+      this.materials.shiny.color = partColors; 
 
      // program_state.set_camera( Mat4.translation([ 0,0,-10 ]) );
       const angle = -40//Math.sin( t );
@@ -295,12 +327,20 @@ class Solar_System extends Scene
 
         this.shapes.box.draw(context, program_state, model_transform, multipass_material);
       }
+      
+      // particles
+      let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
 
+      if (this.part_on) {
+        // .post_multiply( Mat4.translation(position_of_camera) );
+        model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
+
+        model_transform.post_multiply( Mat4.translation([5,5,5]) );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override( blue ) );
+      }
+      
       // ***** END TEST SCENE *****
-
-      // Warning: Get rid of the test scene, or else the camera position and movement will not work.
-
-
 
     }
 }
@@ -493,55 +533,63 @@ class Wireframe_Shader extends Shader{
   }
 
 }
-const Black_Hole_Shader = defs.Black_Hole_Shader =
-class Black_Hole_Shader extends Shader         // Simple "procedural" texture shader, with texture coordinates but without an input image.
+
+
+const Particle_Shader = defs.Particle_Shader = 
+class Particle_Shader extends Shader
 { update_GPU( context, gpu_addresses, program_state, model_transform, material )
-      { 
-                  // update_GPU(): Define how to synchronize our JavaScript's variables to the GPU's.  This is where the shader 
-                  // recieves ALL of its inputs.  Every value the GPU wants is divided into two categories:  Values that belong
-                  // to individual objects being drawn (which we call "Material") and values belonging to the whole scene or 
-                  // program (which we call the "Program_State").  Send both a material and a program state to the shaders 
-                  // within this function, one data field at a time, to fully initialize the shader for a draw.
+    {
+      const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
+                          PCM = P.times( C ).times( M );
+      context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D( PCM.transposed() ) );
+      //context.uniformMatrix4fv( gpu_addresses.camera_transform, false, Mat.flatten_2D_to_1D( program_state.model_transform.transposed() ));
+      context.uniformMatrix4fv( gpu_addresses.camera_transform, false, Mat.flatten_2D_to_1D( program_state.camera_inverse.transposed() ) );
+      context.uniform1f ( gpu_addresses.animation_time, program_state.animation_time / 1000 ); 
+      context.uniform1f ( gpu_addresses.smoothly_varying_ratio, program_state.smoothly_varying_ratio ); 
+      context.uniform4fv( gpu_addresses.sun_color, material.color );
+    }
 
-                  // TODO (#EC 1b):  Send the GPU the only matrix it will need for this shader:  The product of the projection, 
-                  // camera, and model matrices.  The former two are found in program_state; the latter is directly 
-                  // available here.  Finally, pass in the animation_time from program_state. You don't need to allow
-                  // custom materials for this part so you don't need any values from the material object.
-                  // For an example of how to send variables to the GPU, check out the simple shader "Funny_Shader".
-
-        // context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform,       
-      }
   shared_glsl_code()            // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
-    { 
-                  // TODO (#EC 1c):  For both shaders, declare a varying vec2 to pass a texture coordinate between
-                  // your shaders.  Also make sure both shaders have an animation_time input (a uniform).
-      return `precision mediump float;
-             
+    { return `precision mediump float;
+                            
       `;
     }
   vertex_glsl_code()           // ********* VERTEX SHADER *********
-    {
-                          // TODO (#EC 1d,e):  Create the final "gl_Position" value of each vertex based on a displacement
-                          // function.  Also pass your texture coordinate to the next shader.  As inputs,
-                          // you have the current vertex's stored position and texture coord, animation time,
-                          // and the final product of the projection, camera, and model matrices.
-      return this.shared_glsl_code() + `
+    { return this.shared_glsl_code() + `
+        precision mediump float;
 
-        void main()
-        { 
+        attribute vec3 position;
+        attribute vec3 center;
+        attribute vec2 texture_coord;
+        attribute vec3 billboardOffset;
 
+        uniform mat4 projection_camera_model_transform;
+        uniform mat4 camera_transform;
+        uniform float animation_time;
+
+        void main() {
+          vec3 cameraRight = normalize(vec3(camera_transform[0].x, camera_transform[1].x, camera_transform[2].x));
+          vec3 cameraUp = normalize(vec3(camera_transform[0].y, camera_transform[1].y, camera_transform[2].y));
+
+          gl_Position = projection_camera_model_transform * vec4( center.xyz + billboardOffset.x * cameraRight + billboardOffset.y * cameraUp, 1.0 );
         }`;
     }
   fragment_glsl_code()           // ********* FRAGMENT SHADER *********
-    { 
-                          // TODO (#EC 1f):  Using the input UV texture coordinates and animation time,
-                          // calculate a color that makes moving waves as V increases.  Store
-                          // the result in gl_FragColor.
-      return this.shared_glsl_code() + `
-        void main()
-        { 
+    { return this.shared_glsl_code() + `
+        precision mediump float;
+        uniform float animation_time;
+        uniform vec4 sun_color;
+        float brightness = 0.82;
 
-        }`;
+        void main() 
+        {
+
+//         vec3 color = vec3((1.-disp), (0.1-disp*0.2)+0.1, (0.1-disp*0.1)+0.1*abs(sin(disp)));
+//         gl_FragColor = vec4( color.rgb, 1.0 );
+//         gl_FragColor *= sun_color;
+          gl_FragColor = sun_color;
+
+        }` ;
     }
 }
 
@@ -749,8 +797,6 @@ update_GPU( context, gpu_addresses, program_state, model_transform, material )
         material = Object.assign( {}, defaults, material );
         this.send_material ( context, gpu_addresses, material );
     }
-                                // TODO (#EC 2):  Complete the shaders, displacing the input sphere's vertices as
-                                // a fireball effect and coloring fragments according to displacement.
 
   shared_glsl_code()            // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
     { return `precision mediump float;
@@ -895,7 +941,6 @@ void main() {
           }
   fragment_glsl_code()           // ********* FRAGMENT SHADER *********
     { return this.shared_glsl_code() + `
-
         void main()
         { 
          vec3 color = vec3((1.-disp), (0.1-disp*0.2)+0.1, (0.1-disp*0.1)+0.1*abs(sin(disp)));
