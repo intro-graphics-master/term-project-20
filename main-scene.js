@@ -86,6 +86,7 @@ class Solar_System extends Scene
                                                 // TODO (#1):  Complete this list with any additional shapes you need.
        const Flat_Obj = defs.Shape_From_File.prototype.make_flat_shaded_version();
        this.shapes = { 'box' : new Cube(),
+                    'square' : new Square(),
                    'ball_4' : new Subdivision_Sphere( 4 ),
                      'star' : new Planar_Star(),
                    'particle': new Part(),
@@ -370,14 +371,13 @@ class Solar_System extends Scene
 
       // two-pass rendering
 
-      if (Object.values(this.multipass_effects).some(effect => effect)) {
-        this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
-        this.texture.image.src = this.scratchpad.toDataURL("image/png");
+      this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
+      this.texture.image.src = this.scratchpad.toDataURL("image/png");
 
+      if (Object.values(this.multipass_effects).some(effect => effect)) {
         if (this.skipped_first_frame)
           this.texture.copy_onto_graphics_card(context.context, false);
         this.skipped_first_frame = true;
-
         context.context.clear(context.context.COLOR_BUFFER_BIT | context.context.DEPTH_BUFFER_BIT);
 
         model_transform = Mat4.identity();
@@ -396,18 +396,18 @@ class Solar_System extends Scene
           // .times(Mat4.translation(translate))
           .times(Mat4.inverse(Mat4.look_at(translate, camera_p, camera_j)))
           //.times(Mat4.rotation(Math.PI/2, [1,0,0]))
-          .times(Mat4.scale([5.22,2.9,1]))
+          .times(Mat4.scale([-5.965,3.31,1]))
         );
 
         // ***** ADD MULTIPASS EFFECTS HERE
 
-        let multipass_material = undefined;
+        let multipass_material = this.materials.plastic.override({color: Color.of(1,.5,1,1), ambient: 1});
 
         if (this.multipass_effects.pixelate) {
           multipass_material = this.materials.pixelate.override({pixels: this.pixelation});
         }
 
-        this.shapes.box.draw(context, program_state, model_transform, multipass_material);
+        this.shapes.square.draw(context, program_state, model_transform, multipass_material);
       }
 
       // ***** END TEST SCENE *****
