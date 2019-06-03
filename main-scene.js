@@ -151,7 +151,6 @@ class Solar_System extends Scene
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
                                   // stores 30 random location matrices for drawing stars behind the solar system:
       
-      this.direction = Vec.of(1,1,1,1);
       this.part_on = false;
       this.star_matrices = [];
       for( let i=0; i<30; i++ )
@@ -294,7 +293,7 @@ class Solar_System extends Scene
       const updown = Math.sin(6*t);
       const move = ((t*10)%360)*Math.PI/180.0;
       var randnum = Math.random()*10;
-      var direction = Vec.of(1,1,1,1);
+      var direction = 1;
 
       model_transform = Mat4.identity();
 
@@ -302,14 +301,20 @@ class Solar_System extends Scene
         // .post_multiply( Mat4.translation(position_of_camera) );
         model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) )
                        .post_multiply( Mat4.translation([1, 0, 0]) );
-        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override(blue) );
-
-        direction = Vec.of(-1,-1,-1,-1);
-        model_transform.post_multiply( Mat4.translation([-2.5*t, 5.5, -2]) );
-             //.post_multiply( Mat4.rotation(-move, [0, 1, 0]));;
-
         this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
+
+        direction = -1;
+        model_transform.post_multiply( Mat4.translation([-2.5, 5.5, -2]) );
+
+        //this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
       }
+
+
+
+
+
+
+      
 
       // two-pass rendering
 
@@ -550,7 +555,8 @@ class Wireframe_Shader extends Shader{
 
 const Particle_Shader = defs.Particle_Shader = 
 class Particle_Shader extends Shader
-{ update_GPU( context, gpu_addresses, program_state, model_transform, material )
+{ 
+  update_GPU( context, gpu_addresses, program_state, model_transform, material )
     {
       const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
                           PCM = P.times( C ).times( M );
@@ -560,7 +566,7 @@ class Particle_Shader extends Shader
       context.uniform1f ( gpu_addresses.smoothly_varying_ratio, program_state.smoothly_varying_ratio ); 
       context.uniform4fv( gpu_addresses.sun_color, material.color );
       context.uniformMatrix4fv (gpu_addresses.model_transform, false, Mat.flatten_2D_to_1D( model_transform.transposed() ) );
-      //context.uniform4fv (gpu_addresses.direction, program_state.direction);
+      context.uniform1f ( gpu_addresses.direction, program_state.direction);
 
       if( material.texture && material.texture.ready )
       {                         // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
@@ -591,7 +597,7 @@ class Particle_Shader extends Shader
         uniform mat4 model_transform;
         uniform mat4 camera_transform;
         uniform float animation_time;
-        uniform vec4 direction;
+        uniform float direction;
 
         float modI(float a,float b) {
           return a - b * floor(a/b);
@@ -602,10 +608,11 @@ class Particle_Shader extends Shader
           vec3 cameraUp = normalize(vec3(camera_transform[0].y, camera_transform[1].y, camera_transform[2].y));
           f_tex_coord = texture_coord;
 
-          vec3 direction = normalize(vec3(model_transform[0]));
+          //vec3 d = normalize(vec3(direction, direction, direction));
+          //vec3 newCenter = center.xyz + vec3(d*animation_time);
 
-          vec3 newCenter = center.xyz + vec3(direction.xyz*animation_time);
-          //vec3 newCenter = center.xyz + vec3(animation_time);
+          vec3 newCenter = center.xyz + vec3(animation_time);
+
           float range = 200.0;
 
           newCenter.x = modI(newCenter.x, range) - 100.;
@@ -626,12 +633,10 @@ class Particle_Shader extends Shader
 
         void main() 
         {
-
             //gl_FragColor = sun_color;          
 
             vec4 tex_color = texture2D( texture, f_tex_coord );
             if( tex_color.w < .01 ) discard;
-
             gl_FragColor = tex_color; 
 
         }` ;
