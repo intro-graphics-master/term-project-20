@@ -9,6 +9,7 @@ function randomNum(min,max)
       return Math.floor((Math.random() * (max-min) + min) * 100) / 100 ;
   }
 
+
 const Part = defs.part =
 class Part extends Square
 {
@@ -128,6 +129,24 @@ class Solar_System extends Scene
         "pixelate": 0,
       };
 
+      // TODO (maybe): this is a really clunky setup here, make it better
+      this.songs = [
+        "pathfinder", "ember", "firelight", "cascade",
+        "compass", "overworld", "cairn", "glaciers",
+      ]
+      this.sounds = {
+        pathfinder: new Audio("assets/kubbi_pathfinder.mp3" ),
+        ember:      new Audio("assets/kubbi_ember.mp3"      ),
+        firelight:  new Audio("assets/kubbi_firelight.mp3"  ),
+        cascade:    new Audio("assets/kubbi_cascade.mp3"    ),
+        compass:    new Audio("assets/kubbi_compass.mp3"    ),
+        overworld:  new Audio("assets/kubbi_overworld.mp3"  ),
+        cairn:      new Audio("assets/kubbi_cairn.mp3"      ),
+        glaciers:   new Audio("assets/kubbi_glaciers.mp3"   ),
+      }
+      this.playingMusic = false;
+      this.currentlyPlayingIndex = 0;
+
       this.materials = { plastic: new Material( phong_shader, 
                                     { ambient: 0.3, diffusivity: 1, specularity: 0, color: Color.of( 1,.5,1,1 ) } ),
                    plastic_stars: new Material( texture_shader_2,    
@@ -154,6 +173,22 @@ class Solar_System extends Scene
                          .times( Mat4.rotation( Math.PI/2 * (Math.random()-.5), Vec.of( 1,0,0 ) ) )
                          .times( Mat4.translation([ 0,0,-150 ]) ) );
     }
+
+  restartSong(name, volume = 1) {
+    if (0 < this.sounds[name].currentTime && this.sounds[name].currentTime < .3) return;
+    this.sounds[name].currentTime = 0;
+    this.sounds[name].volume = Math.min(Math.max(volume, 0), 1);
+    if (this.playingMusic) this.sounds[name].play();
+  }
+
+  currentlyPlayingSong() {
+    return this.songs[this.currentlyPlayingIndex];
+  }
+
+  currentlyPlayingSound() {
+    return this.sounds[this.currentlyPlayingSong()];
+  }
+
   make_control_panel()
     {                                 // make_control_panel(): Sets up a panel of interactive HTML elements, including
                                       // buttons with key bindings for affecting this scene, and live info readouts.
@@ -166,11 +201,32 @@ class Solar_System extends Scene
          if (this.multipass_effects.pixelate) this.pixelation += 2;
        }, "red");
 
-       this.key_triggered_button("Toggle pixelation", [ "b" ], () => {
-        this.multipass_effects.pixelate ^= 1;
-       })
-      
-       this.key_triggered_button( "Particles on/off", ["p"], () => this.part_on = !this.part_on);
+       this.key_triggered_button("Toggle pixelation", [ "b" ], () => this.multipass_effects.pixelate ^= 1)
+       this.key_triggered_button("Toggle particles", ["p"], () => this.part_on ^= 1);
+
+       this.key_triggered_button("Play/pause music", [ "Enter" ], () => {
+        if (this.playingMusic)
+          this.currentlyPlayingSound().pause();
+        else 
+          this.currentlyPlayingSound().play();
+
+        this.playingMusic ^= 1;
+       });
+
+       this.new_line()
+
+       this.key_triggered_button("Previous song", [ ";" ], () => {
+         this.currentlyPlayingSound().pause();
+         this.currentlyPlayingIndex--;
+         if (this.currentlyPlayingIndex < 0) this.currentlyPlayingIndex = this.songs.length - 1;
+         this.restartSong(this.currentlyPlayingSong());
+       });
+       this.key_triggered_button("Next song", [ "'" ], () => {
+         this.currentlyPlayingSound().pause();
+         this.currentlyPlayingIndex++;
+         if (this.currentlyPlayingIndex > this.songs.length - 1) this.currentlyPlayingIndex = 0;
+         this.restartSong(this.currentlyPlayingSong());
+       });
     }
   display( context, program_state )
     {                                                // display():  Called once per frame of animation.  For each shape that you want to
