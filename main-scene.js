@@ -30,6 +30,24 @@ const {
 } = defs;
 
 
+//global audio context 
+
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const context = new AudioContext;
+const analyser = context.createAnalyser();
+var bufferlen = 1024;
+var  pitch_array = new Uint8Array(bufferlen);
+var  volume_array = new Uint8Array(bufferlen);
+
+// source.connect(analyser); 
+// analyser.connect(context.destination);
+// analyser.smoothingTimeConstant = .8;
+// analyser.fftSize = 1024;
+
+// var bufferlen = analyser.frequencyBinCount;
+// var pitch_array = new Uint8Array(bufferlen);
+// var volume_array = new Uint8Array(bufferlen);
+
 function randomNum(min,max)
   {
       return Math.floor((Math.random() * (max-min) + min) * 100) / 100 ;
@@ -101,7 +119,7 @@ class Solar_System extends Scene
 
       this.scratchpad = document.createElement("canvas");
       this.scratchpad_context = this.scratchpad.getContext("2d");
-      this.scratchpad.width = 1024;
+      this.scratchpad.width = 1024; 
       this.scratchpad.height = 1024;
       this.texture = new Texture("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
 
@@ -165,12 +183,15 @@ class Solar_System extends Scene
         blue: Color.of(119 / 255, 192 / 255, 203 / 255)
       }
       // TODO (maybe): this is a really clunky setup here, make it better
+      // each song is an audio source
       this.songs = [
         "pathfinder", "ember", "firelight", "cascade",
         "compass", "overworld", "cairn", "glaciers",
       ]
+
+      //initialize audio
       this.sounds = {
-        pathfinder: new Audio("assets/kubbi_pathfinder.mp3" ),
+        pathfinder: new Audio("assets/kubbi_pathfinder.mp3"),
         ember:      new Audio("assets/kubbi_ember.mp3"      ),
         firelight:  new Audio("assets/kubbi_firelight.mp3"  ),
         cascade:    new Audio("assets/kubbi_cascade.mp3"    ),
@@ -179,9 +200,24 @@ class Solar_System extends Scene
         cairn:      new Audio("assets/kubbi_cairn.mp3"      ),
         glaciers:   new Audio("assets/kubbi_glaciers.mp3"   ),
       }
+
+      // //create audio sources 
+      this.sources = { 
+        pathfinder: context.createMediaElementSource(this.sounds.pathfinder), 
+        ember: context.createMediaElementSource(this.sounds.ember), 
+        firelight: context.createMediaElementSource(this.sounds.firelight),
+        cascade: context.createMediaElementSource(this.sounds.cascade), 
+        compass: context.createMediaElementSource(this.sounds.compass), 
+        overworlds: context.createMediaElementSource(this.sounds.overworld),
+        cairn: context.createMediaElementSource(this.sounds.cairn),
+        glaciers: context.createMediaElementSource(this.sounds.glaciers)
+      }
+      
       this.playingMusic = false;
       this.currentlyPlayingIndex = 0;
+      this.currentSource = this.sources.pathfinder; //first source
 
+   
       this.materials = { plastic: new Material( phong_shader,
                                     { ambient: 0, diffusivity: .5, specularity: .1, color: Color.of( 1,.5,1,1 ) } ),
                    plastic_stars: new Material( texture_shader_2,
@@ -243,6 +279,11 @@ class Solar_System extends Scene
     return this.songs[this.currentlyPlayingIndex];
   }
 
+  newSource(){ 
+    const song = this.currentlyPlayingSong();
+    this.currentSource = this.sources[song];
+  }
+
   currentlyPlayingSound() {
     return this.sounds[this.currentlyPlayingSong()];
   }
@@ -263,10 +304,25 @@ class Solar_System extends Scene
        this.key_triggered_button("Toggle particles", ["p"], () => this.part_on ^= 1);
 
        this.key_triggered_button("Play/pause music", [ "Enter" ], () => {
-        if (this.playingMusic)
+      
+        if (this.playingMusic) { 
           this.currentlyPlayingSound().pause();
-        else
+        } 
+        else { 
+          this.newSource()
+          this.currentSource.connect(analyser); 
+          analyser.connect(context.destination);
+          analyser.smoothingTimeConstant = .8;
+          analyser.fftSize = 1024;
+
+          bufferlen = analyser.frequencyBinCount;
+          pitch_array = new Uint8Array(bufferlen);
+          volume_array = new Uint8Array(bufferlen);
+          analyser.getByteFrequencyData(pitch_array);
+          analyser.getByteTimeDomainData(volume_array);
           this.currentlyPlayingSound().play();
+        }
+          
 
         this.playingMusic ^= 1;
        });
@@ -282,6 +338,17 @@ class Solar_System extends Scene
        this.key_triggered_button("Next song", [ "'" ], () => {
          this.currentlyPlayingSound().pause();
          this.currentlyPlayingIndex++;
+         this.newSource();
+         this.currentSource.connect(analyser); 
+         analyser.connect(context.destination);
+         analyser.smoothingTimeConstant = .8;
+         analyser.fftSize = 1024;
+
+         bufferlen = analyser.frequencyBinCount;
+         pitch_array = new Uint8Array(bufferlen);
+         volume_array = new Uint8Array(bufferlen);
+         analyser.getByteFrequencyData(pitch_array);
+         analyser.getByteTimeDomainData(volume_array);
          if (this.currentlyPlayingIndex > this.songs.length - 1) this.currentlyPlayingIndex = 0;
          this.restartSong(this.currentlyPlayingSong());
        });
@@ -291,6 +358,7 @@ class Solar_System extends Scene
                                                      // appear onscreen, place a .draw() call for it inside.  Each time, pass in a
                                                      // different matrix value to control where the shape appears.
      context.context.getExtension( "OES_standard_derivatives" );
+
                            // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
       if( !context.scratchpad.controls )
         {                       // Add a movement controls panel to the page:
@@ -315,6 +383,12 @@ class Solar_System extends Scene
       const t = program_state.animation_time / 1000;
 
                                                   // Have to reset this for each frame:
+      
+      // define arrays for audio data
+ 
+      analyser.getByteFrequencyData(pitch_array);
+      analyser.getByteTimeDomainData(volume_array);
+      
       this.camera_teleporter.cameras = [];
       this.camera_teleporter.cameras.push( Mat4.look_at( Vec.of( 0,10,20 ), Vec.of( 0,0,0 ), Vec.of( 0,1,0 ) ) );
 
@@ -385,7 +459,7 @@ class Solar_System extends Scene
       //model_transform = model_transform.post_multiply(Mat4.scale([2,2,2]));
      // this.shapes.ball_4.draw(context, program_state, model_transform, this.materials.water.override({color:Color.of(.2,.5,.5,.9)}));
      model_transform = model_transform.post_multiply(Mat4.rotation(t*2,[0,1,0]));
-      this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
+      this.shapes.disk.draw(context, program_state, model_transform, this.materials.rainbow_plastic);
       model_transform = model_transform.post_multiply(Mat4.translation([0,.5,0]));
       model_transform = Mat4.identity();
       model_transform = model_transform.post_multiply(Mat4.scale([9.6,9.6,9.6]));
@@ -409,7 +483,6 @@ class Solar_System extends Scene
       }
 
       // two-pass rendering
-
       this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
       this.texture.image.src = this.scratchpad.toDataURL("image/png");
 
@@ -1801,14 +1874,28 @@ const Sun_Shader = defs.Sun_Shader =
 // rainbow shader
 const Rainbow_Shader = defs.Rainbow_Shader =
     class Rainbow_Shader extends Shader {
+
+        send_material(gl, gpu, material) { // send_material(): Send the desired shape-wide material qualities to the
+          // graphics card, where they will tweak the Phong lighting formula.   
+          // console.log(gl)                                   
+          // gl.uniform4fv(gpu.sun_color, material.color);
+          // gl.uniform1f(gpu.ambient, material.ambient);
+          // gl.uniform1f(gpu.diffusivity, material.diffusivity);
+          // gl.uniform1f(gpu.specularity, material.specularity);
+          // gl.uniform1f(gpu.smoothness, material.smoothness);
+      }
         update_GPU(context, gpu_addresses, graphics_state, model_transform, material) {
+        
             // TODO (#EC 2): Pass the same information to the shader as for EC part 1.  Additionally
             // pass material.color to the shader.
             const [P, C, M] = [graphics_state.projection_transform, graphics_state.camera_inverse, model_transform],
             PCM = P.times(C).times(M);
             context.uniformMatrix4fv(gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D(PCM.transposed()));
+              // pass in volume data 
             context.uniform1f(gpu_addresses.animation_time, graphics_state.animation_time / 1000);
             context.uniform1f(gpu_addresses.pulseHeight, 0.2);
+            context.uniform1iv(gpu_addresses.freqData , pitch_array);
+            // this.send_material(context, gpu_addresses, material);
         }
         // TODO (#EC 2):  Complete the shaders, displacing the input sphere's vertices as
         // a fireball effect and coloring fragments according to displacement.
@@ -1818,8 +1905,11 @@ const Rainbow_Shader = defs.Rainbow_Shader =
             return `precision mediump float;
                   varying float disp;
                   uniform float pulseHeight;
+                  uniform float freqData[1024];
                   uniform float animation_time;
                   varying vec3 newPosition;
+
+                
           `;
         }
         vertex_glsl_code() // ********* VERTEX SHADER *********
@@ -1838,8 +1928,9 @@ const Rainbow_Shader = defs.Rainbow_Shader =
                 
                 //displace disk vertices 
                 //create varying amplitude based on noise
-                
-                newPosition = vec3( (normal.x + position.x)/1.8, pulseHeight*(normal.y + position.y) + sin(position.x*45.+ animation_time)*.1, (normal.z  + position.z)/1.8 );
+                float height = pulseHeight + freqData[0]/255.;
+
+                newPosition = vec3( (normal.x + position.x)/1.8, height*(normal.y + position.y) + sin(position.x*45.+ animation_time)*.1, (normal.z  + position.z)/1.8 );
                 gl_Position = projection_camera_model_transform * vec4( newPosition, 1.0 );
                
             }`;
