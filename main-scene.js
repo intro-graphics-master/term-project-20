@@ -86,6 +86,7 @@ class Solar_System extends Scene
                                                 // TODO (#1):  Complete this list with any additional shapes you need.
        const Flat_Obj = defs.Shape_From_File.prototype.make_flat_shaded_version();
        this.shapes = { 'box' : new Cube(),
+                    'square' : new Square(),
                    'ball_4' : new Subdivision_Sphere( 4 ),
                      'star' : new Planar_Star(),
                    'particle': new Part(),
@@ -396,18 +397,18 @@ class Solar_System extends Scene
           // .times(Mat4.translation(translate))
           .times(Mat4.inverse(Mat4.look_at(translate, camera_p, camera_j)))
           //.times(Mat4.rotation(Math.PI/2, [1,0,0]))
-          .times(Mat4.scale([5.22,2.9,1]))
+          .times(Mat4.scale([-5.965,3.31,1]))
         );
 
         // ***** ADD MULTIPASS EFFECTS HERE
 
-        let multipass_material = undefined;
+        let multipass_material = this.materials.plastic.override({color: Color.of(1,.5,1,1), ambient: 1});
 
         if (this.multipass_effects.pixelate) {
           multipass_material = this.materials.pixelate.override({pixels: this.pixelation});
         }
 
-        this.shapes.box.draw(context, program_state, model_transform, multipass_material);
+        this.shapes.square.draw(context, program_state, model_transform, multipass_material);
       }
 
       // ***** END TEST SCENE *****
