@@ -328,7 +328,7 @@ class Solar_System extends Scene
       
       // particles
       let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
-
+      model_transform = Mat4.identity();
       if (this.part_on) {
         // .post_multiply( Mat4.translation(position_of_camera) );
         model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
