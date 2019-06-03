@@ -9,6 +9,12 @@ function randomNum(min,max)
       return Math.floor((Math.random() * (max-min) + min) * 100) / 100 ;
   }
 
+var canRotate = false;
+var newDisk = false;
+var movingDisk = false;
+var timeStartedClick = 0;
+var diskPresent = false;
+var numSong = 0;
 
 const Part = defs.part =
 class Part extends Square
@@ -217,10 +223,18 @@ class Solar_System extends Scene
        this.key_triggered_button("Toggle particles", ["p"], () => this.part_on ^= 1);
 
        this.key_triggered_button("Play/pause music", [ "Enter" ], () => {
-        if (this.playingMusic)
+        if (this.playingMusic){
           this.currentlyPlayingSound().pause();
-        else
-          this.currentlyPlayingSound().play();
+          diskPresent = false;
+          canRotate = false;
+          movingDisk = false;
+        }
+        else{
+        
+          //this.currentlyPlayingSound().play();
+          newDisk = true;
+          canRotate = true;
+        }
 
         this.playingMusic ^= 1;
        });
@@ -234,6 +248,7 @@ class Solar_System extends Scene
          this.restartSong(this.currentlyPlayingSong());
        });
        this.key_triggered_button("Next song", [ "'" ], () => {
+         numSong++;
          this.currentlyPlayingSound().pause();
          this.currentlyPlayingIndex++;
          if (this.currentlyPlayingIndex > this.songs.length - 1) this.currentlyPlayingIndex = 0;
@@ -338,14 +353,47 @@ class Solar_System extends Scene
       model_transform = model_transform.post_multiply(Mat4.translation([1.05,0,-1.05]));
       model_transform = model_transform.post_multiply(Mat4.rotation(Math.sin(t)/100.-.05,[1,0,0]));
       model_transform = model_transform.post_multiply(Mat4.translation([-1.05,.05,1.05]));
-      this.shapes.spindle.draw(context, program_state, model_transform, this.materials.toon.override({color: Color.of(.1,.5,.5,1.)}));
+      this.shapes.spindle.draw(context, program_state, model_transform, this.materials.toon.override({color: Color.of(137/255,137/255,137/255,1.)}));
       model_transform = saveMatrix.copy();
       model_transform = model_transform.post_multiply(Mat4.scale([1/.75,1/.75,1/.75]));
       model_transform = model_transform.post_multiply(Mat4.translation([-.72,-.15,0]));
       //model_transform = model_transform.post_multiply(Mat4.scale([2,2,2]));
      // this.shapes.ball_4.draw(context, program_state, model_transform, this.materials.water.override({color:Color.of(.2,.5,.5,.9)}));
-     model_transform = model_transform.post_multiply(Mat4.rotation(t*2,[0,1,0]));
-      this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
+     if(canRotate){
+            model_transform = model_transform.post_multiply(Mat4.rotation(t*2,[0,1,0]));
+     }
+     if(diskPresent){
+              switch(numSong){
+                case 0:
+                  this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  break;
+                case 1:
+                console.log("case 1");
+                  this.shapes.disk.draw(context, program_state, model_transform, this.materials.fire.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  break;
+                case 2:
+                console.log("case 2");
+                  this.shapes.disk.draw(context, program_state, model_transform, this.materials.water.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  break;
+                case 3:
+                console.log("case 3");
+                     this.shapes.disk.draw(context, program_state, model_transform, this.materials.glow.override({color: Color.of(.2588,.8431,.9568,1)}));
+                     break;
+
+                case 4:
+                break;
+                case 5:
+                break;
+                case 6:
+                break;
+                case 7:
+                break;
+                default:
+                  this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  break;
+
+              }
+     }
       model_transform = model_transform.post_multiply(Mat4.translation([0,.5,0]));
       model_transform = Mat4.identity();
       model_transform = model_transform.post_multiply(Mat4.scale([9.6,9.6,9.6]));
@@ -355,14 +403,74 @@ class Solar_System extends Scene
       //model_transform = model_transform.post_multiply(Mat4.rotation(Math.PI/2-Math.sin(t)/2-.5,[1,0,0]));
       //model_transform = model_transform.post_multiply(Mat4.translation([0,.6,0]));
       this.shapes.lid.draw(context, program_state, model_transform, this.materials.plastic.override({color:Color.of(.4,.4,.4,.5)}));
+      
+      model_transform = Mat4.identity();
+      model_transform = model_transform.post_multiply(Mat4.translation([9,-2,0]));
+      model_transform = model_transform.post_multiply(Mat4.scale([3,1,3]));
+      model_transform = model_transform.post_multiply(Mat4.scale([1.5,1.3,1.5]));
+      this.shapes.box.draw(context,program_state,model_transform,this.materials.plastic.override({color: Color.of(53/255,35/255,13/255,1.), ambient: .3}));
+      model_transform = model_transform.post_multiply(Mat4.scale([1/1.5,1/1.3,1/1.5]));
+      model_transform = model_transform.post_multiply(Mat4.scale([.8,.8,.8]));
 
+      //model_transform = model_transform.post_multiply(Mat4.translation([0,1,0]));
+      if(newDisk){
+        //console.log("yeet");
+        timeStartedClick = t;
+        newDisk = false;
+        movingDisk = true;
+      }
+      //loads a disk on to the record
+      if(movingDisk){
+        var timeDiff = t - timeStartedClick;
+        //console.log("time diff is: " + timeDiff);
+        var times = [1,2.7,4.52,6.25];
+              model_transform = model_transform.post_multiply(Mat4.scale([.8,.8,.8]));
+
+        model_transform = model_transform.post_multiply(Mat4.scale([1/.5,1/.5,1/.5]));
+        if(timeDiff <times[0]){
+        model_transform = model_transform.post_multiply(Mat4.translation([0,0,timeDiff*3]));
+        }
+        else if(timeDiff< times[1]){
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,1*3]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,(timeDiff-times[0])*2,0]));
+        }else if(timeDiff < times[2]){
+          //left
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,1*3]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,(times[0]*2)+1,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([(timeDiff-times[1])*-2,0,0]));
+        }else if(timeDiff<times[3]){
+          //backwardss
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,1*3]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,times[0]*2+1,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([(times[2]-times[1])*-2,0,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,-(timeDiff-times[2])*2]));
+        }else if (timeDiff<10){
+          //down
+          model_transform = model_transform.post_multiply(Mat4.translation([0,0,1*3]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,times[0]*2+1,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([(times[2]-times[1])*-2,0,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,-(times[3]-times[2])*2]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,-(timeDiff-times[3]),0]));
+        }
+        
+
+        if(timeDiff >= 10){
+          movingDisk = false;
+          diskPresent = true;
+          this.currentlyPlayingSound().play();
+
+        }else{
+          this.shapes.disk.draw(context,program_state,model_transform,this.materials.plastic.override({color: Color.of(137/255,137/255,137/255,1), ambient: .5, specularity:1}));
+
+        }
+      }
       // particles
       let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
       model_transform = Mat4.identity();
       if (this.part_on) {
         // .post_multiply( Mat4.translation(position_of_camera) );
         model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
-        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny);
 
         model_transform.post_multiply( Mat4.translation([5,5,5]) );
         this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override( blue ) );
