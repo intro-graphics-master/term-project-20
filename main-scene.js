@@ -226,6 +226,12 @@ class Solar_System extends Scene
                             specularity: 0,
                             color: this.Colors.purple
                         }),
+                        flower: new Material(flower_shader, {
+                            ambient: 0,
+                            diffusivity: 1,
+                            specularity: 0,
+                            color: this.Colors.purple
+                        }),
                        };
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
@@ -409,28 +415,32 @@ class Solar_System extends Scene
                   this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
                   break;
                 case 1:
-                console.log("case 1");
                   this.shapes.disk.draw(context, program_state, model_transform, this.materials.fire.override({color: Color.of(.2588,.8431,.9568,1)}));
                   break;
                 case 2:
-                console.log("case 2");
                   this.shapes.disk.draw(context, program_state, model_transform, this.materials.water.override({color: Color.of(.2588,.8431,.9568,1)}));
                   break;
                 case 3:
-                console.log("case 3");
-                     this.shapes.disk.draw(context, program_state, model_transform, this.materials.glow.override({color: Color.of(.2588,.8431,.9568,1)}));
+                     this.shapes.disk.draw(context, program_state, model_transform, this.materials.flower);
                      break;
 
                 case 4:
+                      this.shapes.disk.draw(context, program_state, model_transform, this.materials.trippy_plastic);
                 break;
                 case 5:
+                      this.shapes.disk.draw(context, program_state, model_transform, this.materials.rainbow_plastic);
                 break;
                 case 6:
+                     this.shapes.disk.draw(context, program_state, model_transform, this.materials.toon);
                 break;
                 case 7:
+                     this.shapes.disk.draw(context, program_state, model_transform, this.materials.wood);
                 break;
                 default:
                   this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  if(numSong>7){
+                    numSong=0;
+                  }
                   break;
 
               }
@@ -924,8 +934,8 @@ update_GPU( context, gpu_addresses, program_state, model_transform, material )
             float xScale = 1.;
             float yScale = 1.;
             float speed = .01;
-            vec3 dotColor = vec3(.0549,.5921568,.7549019);
-            vec3 baseColor = vec3(0.898039, 0.1568,.317);
+            vec3 dotColor = vec3(52./255.,18./255.,99./255.);
+            vec3 baseColor = vec3(1., 1.,1.);
 
             varying vec2 f_tex_coord;
               varying float disp;
@@ -1122,7 +1132,7 @@ update_GPU( context, gpu_addresses, program_state, model_transform, material )
         float diffY = baseColor.g - dotColor.g;
         float diffZ = baseColor.b - dotColor.b;
 
-        gl_FragColor = vec4(dotColor+n*vec3(.5-diffX,.5-diffY,.5-diffY)*.5, 1. );
+        gl_FragColor = vec4(dotColor+n*vec3(.2-diffX,.2-diffY,.2-diffY)*.5, 1. );
 
        // float ratio = .7 + .5*sin(2.*3.14159*colorTransfer/5.);
 	     // gl_FragColor = vec4(dotColor(colorTransfer+.1)*2.,colorTransfer*20.+.2);
