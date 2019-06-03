@@ -240,25 +240,8 @@ class Solar_System extends Scene
 //         part_color2 = this.Colors.blue;
 //       }
       
+      
       partColors = part_color.times(1-smoothly_varying_ratio).plus(part_color2.times(smoothly_varying_ratio));
-      var partColors2 = this.Colors.light_purple.times(1-smoothly_varying_ratio).plus(blue.times(smoothly_varying_ratio));
-
-
-
-
-
-
-      if (partColors.equals(this.Colors.light_purple)) {
-        part_color = this.Colors.light_purple;
-        part_color2 = this.Colors.purple;
-        console.log("horr");
-      }
-      else if (partColors.equals(this.Colors.purple)) {
-        partColors = this.Colors.purple.times(1-smoothly_varying_ratio).plus(red.times(smoothly_varying_ratio));
-      }
-
-      //partColors = part_color.times(1-smoothly_varying_ratio).plus(part_color2.times(smoothly_varying_ratio));
-
 
       this.materials.shiny.color = partColors; 
 
