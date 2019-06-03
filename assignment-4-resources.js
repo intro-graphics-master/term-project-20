@@ -235,6 +235,54 @@ class Cube extends Shape
     }
 }
 
+/*
+const Grid_Sphere = defs.Grid_Sphere =
+class Grid_Sphere extends Shape                  // With lattitude / longitude divisions; this means singularities are at 
+  { constructor( rows, columns, texture_range )         // the mesh's top and bottom.  Subdivision_Sphere is a better alternative.
+      { super( "position", "normal", "texture_coord" );
+        const semi_circle_points = Array( rows ).fill( Vec.of( 0,0,1 ) ).map( (x,i,a) =>
+                                     Mat4.rotation( i/(a.length-1) * Math.PI, Vec.of( 0,1,0 ) ).times( x.to4(1) ).to3() );
+        
+        Surface_Of_Revolution.insert_transformed_copy_into( this, [ rows, columns, semi_circle_points, texture_range ] );
+      } }
+
+const Torus = defs.Torus =
+class Torus extends Shape                                         // Build a donut shape.  An example of a surface of revolution.
+  { constructor( rows, columns, texture_range )  
+      { super( "position", "normal", "texture_coord" );
+        const circle_points = Array( rows ).fill( Vec.of( 1/3,0,0 ) )
+                                           .map( (p,i,a) => Mat4.translation([ -2/3,0,0 ])
+                                                    .times( Mat4.rotation( i/(a.length-1) * 2*Math.PI, Vec.of( 0,-1,0 ) ) )
+                                                    .times( Mat4.scale([ 1,1,3 ]) )
+                                                    .times( p.to4(1) ).to3() );
+
+        Surface_Of_Revolution.insert_transformed_copy_into( this, [ rows, columns, circle_points, texture_range ] );         
+      } }
+
+
+const Part = defs.part =
+class Part extends Square
+{
+  constructor()
+  {
+    super("position", "velocity", "lifetime");
+//     this.arrays.pos_vec = [pos_vec];
+//     this.arrays.vel = [vel];
+//     this.arrays.life = [life];
+
+    // const numpart
+
+    for(let k = 0; k < 10; k++) {
+          this.arrays.position.push (Vec.of(Math.random(),Math.random(),Math.random(),1));
+          this.arrays.velocity.push (Vec.of(0,0,0,1));
+          this.arrays.lifetime.push (Vec.of(0,0,0,1));
+    }
+
+    Square.insert_transformed_copy_into( this, [ ] ); 
+     
+  }
+}
+*/
 
 const Subdivision_Sphere = defs.Subdivision_Sphere =
 class Subdivision_Sphere extends Shape   
