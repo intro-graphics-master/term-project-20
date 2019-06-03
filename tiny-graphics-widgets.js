@@ -70,19 +70,19 @@ class Controls_Widget
                       ".controls-widget table.control-box { width: 1080px; border:0; margin:0; max-height:380px; transition:.5s; overflow-y:scroll; background:DimGray }",
                       ".controls-widget table.control-box:hover { max-height:500px }",
                       ".controls-widget table.control-box td { overflow:hidden; border:0; background:DimGray; border-radius:30px }",
-                      ".controls-widget table.control-box td .control-div { background: #EEEEEE; height:338px; padding: 5px 5px 5px 30px; box-shadow: 25px 0px 60px -15px inset }",
+                      ".controls-widget table.control-box td .control-div { background: #DCDCDC; height:338px; padding: 5px 5px 5px 30px; box-shadow: 0px 0px 0px -0px inset }",
                       ".controls-widget table.control-box td * { background:transparent }",
                       ".controls-widget table.control-box .control-div td { border-radius:unset }",
-                      ".controls-widget table.control-box .control-title { padding:7px 40px; color:white; background:DarkSlateGray; box-shadow: 25px 0px 70px -15px inset black }",
+                      ".controls-widget table.control-box .control-title { padding:7px 40px; color:white; background:DarkSlateGray; box-shadow: 0px 0px 0px -0px inset black }",
                       ".controls-widget *.live_string { display:inline-block; background:unset }",
                       ".dropdown { display:inline-block }",
                       ".dropdown-content { display:inline-block; transition:.2s; transform: scaleY(0); overflow:hidden; position: absolute; \
                                             z-index: 1; background:#E8F6FF; padding: 16px; margin-left:30px; min-width: 100px; \
-                                            box-shadow: 5px 10px 16px 0px rgba(0,0,0,0.2) inset; border-radius:10px }",
+                                            box-shadow: 0px 0px 0px 0px rgba(0,0,0,0.2) inset; border-radius:10px }",
                       ".dropdown-content a { color: black; padding: 4px 4px; display: block }",
                       ".dropdown a:hover { background: #f1f1f1 }",
                       ".controls-widget button { background: #4C9F50; color: white; padding: 6px; border-radius:9px; \
-                                                box-shadow: 4px 6px 16px 0px rgba(0,0,0,0.3); transition: background .3s, transform .3s }",
+                                                box-shadow: 0px 0px 0px 0px rgba(0,0,0,0.3); transition: background .3s, transform .3s }",
                       ".controls-widget button:hover, button:focus { transform: scale(1.3); color:gold }",
                       ".link { text-decoration:underline; cursor: pointer }",
                       ".show { transform: scaleY(1); height:200px; overflow:auto }",
