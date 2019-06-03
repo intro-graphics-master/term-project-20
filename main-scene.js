@@ -56,13 +56,17 @@ class Solar_System extends Scene
       const wire_shader = new Wireframe_Shader();
       const funny_shader = new defs.Funny_Shader();
       const water_shader = new Water_Shader();
+      //cloud_shader is the better water 
       const cloud_shader = new Cloud_Shader();
+      const toon_shader = new Toon_Shader();
+      const wood_shader = new Wood_Shader();
+
                                               // *** Materials: *** wrap a dictionary of "options" for a shader.
 
                                               // TODO (#2):  Complete this list with any additional materials you need:
 
       this.materials = { plastic: new Material( phong_shader, 
-                                    { ambient: 0, diffusivity: 1, specularity: 0, color: Color.of( 1,.5,1,1 ) } ),
+                                    { ambient: 0, diffusivity: .5, specularity: .1, color: Color.of( 1,.5,1,1 ) } ),
                    plastic_stars: new Material( texture_shader_2,    
                                     { texture: new Texture( "assets/stars.png" ),
                                       ambient: 0, diffusivity: 1, specularity: 0, color: Color.of( .4,.4,.4,1 ) } ),
@@ -75,8 +79,9 @@ class Solar_System extends Scene
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
                              glow: new Material(wire_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.3,.1,.9,1)}),
                              water: new Material(water_shader, {ambient:.8,diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.9,1.)}),
-                             wood: new Material(texture_shader, {texture: new Texture("assets/earth.gif"), ambient: 1., diffusivity: .5, specularity:.5}),
+                             wood: new Material(wood_shader, { ambient: 1., diffusivity: .5, specularity:.5}),
                      betterWater: new Material(cloud_shader,{ambient:1, diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.5,1.)}),
+                            toon: new Material(toon_shader,{ambient:1, diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.5,1.)}),
                        };
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
@@ -208,6 +213,7 @@ class Solar_System extends Scene
      // program_state.set_camera( Mat4.translation([ 0,0,-10 ]) );
       const angle = -40//Math.sin( t );
       const light_position = Mat4.rotation( angle, [ 1,0,0 ] ).times( Vec.of( 0,-1,1,0 ) );
+      var lightPos = Color.of(light_position.x,light_position.y, light_position.z, 1.0);
       program_state.lights = [ new Light( light_position, Color.of( 1,1,1,1 ), 1000000000 ) ];
       model_transform = Mat4.identity();
       //this.shapes.box.draw( context, program_state, model_transform, this.materials.plastic.override( yellow ) );
@@ -215,19 +221,18 @@ class Solar_System extends Scene
       //this.shapes.ball_4.draw( context, program_state, model_transform, this.materials.metal_earth.override( blue ) );
       model_transform = model_transform.post_multiply(Mat4.translation([0,-2,0]));
       model_transform = model_transform.post_multiply(Mat4.scale([4,4,4]));
-      this.shapes.record.draw(context, program_state, model_transform, this.materials.metal_earth);
+      this.shapes.record.draw(context, program_state, model_transform, this.materials.wood.override({color:Color.of(0.2666666667,0.168627451,0.09019607843,1.)}));
       model_transform = model_transform.post_multiply(Mat4.translation([-.45,0,-.45]));
       model_transform = model_transform.post_multiply(Mat4.scale([.8,.8,.8]));
       var saveMatrix = model_transform.copy();
       model_transform = model_transform.post_multiply(Mat4.translation([1.05,0,-1.05]));
       model_transform = model_transform.post_multiply(Mat4.rotation(Math.sin(t)/100.-.05,[1,0,0]));
       model_transform = model_transform.post_multiply(Mat4.translation([-1.05,.05,1.05]));
-      this.shapes.spindle.draw(context, program_state, model_transform, this.materials.plastic.override({color: Color.of(.2,.2,.5,1.)}));
+      this.shapes.spindle.draw(context, program_state, model_transform, this.materials.toon.override({color: Color.of(.5,.5,.5,1.)}));
       model_transform = saveMatrix.copy();
       model_transform = model_transform.post_multiply(Mat4.scale([1/.75,1/.75,1/.75]));
       model_transform = model_transform.post_multiply(Mat4.translation([-.72,-.15,0]));
       //model_transform = model_transform.post_multiply(Mat4.scale([2,2,2]));
-      // Color.of(.2, .5, .5, .9)
      // this.shapes.ball_4.draw(context, program_state, model_transform, this.materials.water.override({color:Color.of(.2,.5,.5,.9)}));
      model_transform = model_transform.post_multiply(Mat4.rotation(t*2,[0,1,0]));
       this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
@@ -956,6 +961,275 @@ attribute vec3 position;
 
 
 }
+
+
+const Toon_Shader = defs.Toon_Shader =
+class Toon_Shader extends Shader{
+
+        send_material( gl, gpu, material ,program_state)
+            {                                       // send_material(): Send the desired shape-wide material qualities to the
+                                                    // graphics card, where they will tweak the Phong lighting formula.                                      
+              gl.uniform4fv( gpu.myColor,    material.color       );
+              gl.uniform1f ( gpu.ambient,        material.ambient     );
+              gl.uniform1f ( gpu.diffusivity,    material.diffusivity );
+              gl.uniform1f ( gpu.specularity,    material.specularity );
+              gl.uniform1f ( gpu.smoothness,     material.smoothness  );
+            }
+
+
+        update_GPU( context, gpu_addresses, program_state, model_transform, material )
+            {
+                              // TODO (#EC 2): Pass the same information to the shader as for EC part 1.  Additionally
+                              // pass material.color to the shader.
+             const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
+                              PCM = P.times( C ).times( M );
+                context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D( PCM.transposed() ) );
+                context.uniformMatrix4fv( gpu_addresses.modelMatrix, false, Mat.flatten_2D_to_1D( M.transposed() ) );
+                context.uniform1f ( gpu_addresses.time, program_state.animation_time / 1000 );  
+                context.uniform1f(gpu_addresses.sun_color, material.color);  
+                const defaults = { color: Color.of( 0,0,0,1 ), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40 };
+                material = Object.assign( {}, defaults, material );
+                this.send_material ( context, gpu_addresses, material ,program_state);
+            }
+
+
+        shared_glsl_code(){
+            return `precision highp float;
+                    precision highp int;
+                    varying vec3 vNormal;
+                    varying vec3 vPosition;
+                    uniform float time;
+                    uniform mat4 modelMatrix;
+                    uniform vec4 myColor;
+                    uniform mat4 projection_camera_model_transform;
+                    vec3 vLightPosition = vec3(-1.6136017,.502889,1.069);
+                    vec3 lightColor = vec3(.5,.4,.6);
+
+      `;
+
+        }
+        vertex_glsl_code(){
+          return this.shared_glsl_code() + 
+          `
+                attribute vec3 normal;
+                attribute vec3 position;
+                void main(){
+                    vNormal = normal;
+                    vPosition = position;
+                    gl_Position = projection_camera_model_transform*vec4(position,1.0);
+                }
+           `
+
+
+        }
+        fragment_glsl_code(){
+          return this.shared_glsl_code() + 
+          `
+           void main(void) {
+                float ToonThresholds[4];
+                ToonThresholds[0] = 0.95;
+                ToonThresholds[1] = 0.5;
+                ToonThresholds[2] = 0.2;
+                ToonThresholds[3] = 0.03;
+
+                float ToonBrightnessLevels[5];
+                ToonBrightnessLevels[0] = 1.0;
+                ToonBrightnessLevels[1] = 0.8;
+                ToonBrightnessLevels[2] = 0.6;
+                ToonBrightnessLevels[3] = 0.35;
+                ToonBrightnessLevels[4] = 0.0;
+
+                // Light
+                vec3 lightVectorW = normalize(vec3(vec4( vLightPosition*((time-1.)/100.), 1.0) * modelMatrix) - vPosition);
+
+                // diffuse
+                float ndl = max(0.0, dot(vNormal, lightVectorW));
+                vec3 color = vec3(myColor.rgb);
+                if (ndl > ToonThresholds[0]) {
+                    color *= ToonBrightnessLevels[0];
+                } else if (ndl > ToonThresholds[1])  {
+                    color *= ToonBrightnessLevels[1];
+                } else if (ndl > ToonThresholds[2]) {
+                    color *= ToonBrightnessLevels[2];
+                } else if (ndl > ToonThresholds[3]) {
+                    color *= ToonBrightnessLevels[3];
+                } else {
+                    color *= ToonBrightnessLevels[4];
+                }
+
+                gl_FragColor = vec4( color, 1.0 );
+        }
+           `
+
+        }
+}
+
+
+
+const Wood_Shader = defs.Wood_Shader =
+class Wood_Shader extends Shader{
+      send_material( gl, gpu, material )
+          {                                       // send_material(): Send the desired shape-wide material qualities to the
+                                                  // graphics card, where they will tweak the Phong lighting formula.                                      
+            gl.uniform4fv( gpu.sun_color,    material.color       );
+            gl.uniform1f ( gpu.ambient,        material.ambient     );
+            gl.uniform1f ( gpu.diffusivity,    material.diffusivity );
+            gl.uniform1f ( gpu.specularity,    material.specularity );
+            gl.uniform1f ( gpu.smoothness,     material.smoothness  );
+          }
+
+
+      update_GPU( context, gpu_addresses, program_state, model_transform, material )
+          {
+                            // TODO (#EC 2): Pass the same information to the shader as for EC part 1.  Additionally
+                            // pass material.color to the shader.
+           const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
+                            PCM = P.times( C ).times( M );
+              context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D( PCM.transposed() ) );
+              context.uniform1f ( gpu_addresses.time, program_state.animation_time / 1000 );  
+              context.uniform1f(gpu_addresses.sun_color, material.color);  
+              const defaults = { color: Color.of( 0,0,0,1 ), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40 };
+              material = Object.assign( {}, defaults, material );
+              this.send_material ( context, gpu_addresses, material );
+          }
+      shared_glsl_code(){
+        return `precision highp float;
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                uniform float time;
+                vec3 color1 = vec3(.3294117,.1568,.0196078);
+                vec3 color2 = vec3(.4745,.2705,.1764);
+                float frequency = 2.;
+                float noiseScale = 10.;
+                float ringScale = .9;
+                float contrast = 1.;
+                uniform mat4 projection_camera_model_transform;
+
+
+                vec3 mod289(vec3 x) {
+                    return x - floor(x * (1.0 / 289.0)) * 289.0;
+                }
+
+                vec4 mod289(vec4 x) {
+                    return x - floor(x * (1.0 / 289.0)) * 289.0;
+                }
+
+                vec4 permute(vec4 x) {
+                    return mod289(((x*34.0)+1.0)*x);
+                }
+
+                vec4 taylorInvSqrt(vec4 r) {
+                    return 1.79284291400159 - 0.85373472095314 * r;
+                }
+
+                float snoise(vec3 v) {
+                    const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+                    const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+                    // First corner
+                    vec3 i  = floor(v + dot(v, C.yyy) );
+                    vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+                    // Other corners
+                    vec3 g = step(x0.yzx, x0.xyz);
+                    vec3 l = 1.0 - g;
+                    vec3 i1 = min( g.xyz, l.zxy );
+                    vec3 i2 = max( g.xyz, l.zxy );
+
+                    //   x0 = x0 - 0.0 + 0.0 * C.xxx;
+                    //   x1 = x0 - i1  + 1.0 * C.xxx;
+                    //   x2 = x0 - i2  + 2.0 * C.xxx;
+                    //   x3 = x0 - 1.0 + 3.0 * C.xxx;
+                    vec3 x1 = x0 - i1 + C.xxx;
+                    vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
+                    vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
+
+                    // Permutations
+                    i = mod289(i);
+                    vec4 p = permute( permute( permute(
+                                    i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                                + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
+                            + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+
+                    // Gradients: 7x7 points over a square, mapped onto an octahedron.
+                    // The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
+                    float n_ = 0.142857142857; // 1.0/7.0
+                    vec3  ns = n_ * D.wyz - D.xzx;
+
+                    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)
+
+                    vec4 x_ = floor(j * ns.z);
+                    vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+
+                    vec4 x = x_ *ns.x + ns.yyyy;
+                    vec4 y = y_ *ns.x + ns.yyyy;
+                    vec4 h = 1.0 - abs(x) - abs(y);
+
+                    vec4 b0 = vec4( x.xy, y.xy );
+                    vec4 b1 = vec4( x.zw, y.zw );
+
+                    vec4 s0 = floor(b0)*2.0 + 1.0;
+                    vec4 s1 = floor(b1)*2.0 + 1.0;
+                    vec4 sh = -step(h, vec4(0.0));
+
+                    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+                    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+                    vec3 p0 = vec3(a0.xy,h.x);
+                    vec3 p1 = vec3(a0.zw,h.y);
+                    vec3 p2 = vec3(a1.xy,h.z);
+                    vec3 p3 = vec3(a1.zw,h.w);
+
+                    // Normalise gradients
+                    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+                    p0 *= norm.x;
+                    p1 *= norm.y;
+                    p2 *= norm.z;
+                    p3 *= norm.w;
+
+                    // Mix final noise value
+                    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                    m = m * m;
+                    return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),
+                                dot(p2,x2), dot(p3,x3) ) );
+                }
+
+         `
+      }
+      vertex_glsl_code(){
+        return this.shared_glsl_code() + `
+              attribute vec3 position;
+              attribute vec3 normal;
+               void main(){
+                vNormal = normal;
+                vUv = vec2(position.x*position.y*position.x,position.z*position.x);
+                vPosition = position;
+                gl_Position = projection_camera_model_transform*vec4(position,1.0);
+               }
+
+         `
+
+      }
+      fragment_glsl_code(){
+          return this.shared_glsl_code() + `
+               void main(){
+                  float n = snoise( vPosition );
+                  float ring = fract( frequency * vPosition.z + noiseScale * n );
+                  ring *= contrast * ( 1.0 - ring );
+
+                  // Adjust ring smoothness and shape, and add some noise
+                  float lerp = pow( ring, ringScale ) + n;
+                  vec3 base = mix( color1, color2, lerp);
+                  gl_FragColor = vec4( base, 1.0 );
+               }
+
+            `
+      }
+
+
+}
+
 
 
 const Sun_Shader = defs.Sun_Shader =
