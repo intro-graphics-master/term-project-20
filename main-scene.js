@@ -35,6 +35,12 @@ function randomNum(min,max)
       return Math.floor((Math.random() * (max-min) + min) * 100) / 100 ;
   }
 
+var canRotate = false;
+var newDisk = false;
+var movingDisk = false;
+var timeStartedClick = 0;
+var diskPresent = false;
+var numSong = 0;
 
 const Part = defs.part =
 class Part extends Square
@@ -57,12 +63,12 @@ class Part extends Square
     this.arrays.center.push(Vec.of(0,0,0));
 
     for( var i = 0; i < 200; i++ )
-        { 
-          
+        {
+
           let factor = 200.0;
-          let factor2 = factor / 2;   
-          let num = randomNum(0.1, 0.4);   
-            
+          let factor2 = factor / 2;
+          let num = randomNum(0.1, 0.4);
+
           var square_transform = Mat4.translation([ factor*Math.random()-factor2, factor*Math.random()-factor2, factor*Math.random()-factor2 ])
                                      .times( Mat4.scale([ num, num, num ]) );
 
@@ -85,13 +91,13 @@ class Part extends Square
         }
   }
 }
-          
 
-const Main_Scene = 
+
+const Main_Scene =
 class Solar_System extends Scene
-{                                             
+{
   constructor()
-    {                 
+    {
       super();
                                                         // At the beginning of our program, load one of each of these shape
                                                         // definitions onto the GPU.  NOTE:  Only do this ONCE per shape.
@@ -193,7 +199,7 @@ class Solar_System extends Scene
                                       ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( .4,.4,.4,1 ) } ),
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
                            shiny: new Material( particle_shader, {texture: new Texture( "assets/sparkle2.png" ), ambient: .8, diffusivity: .8, specularity: .8, color: Color.of(102/255,1,204/255,1)}),
-                             
+
                              glow: new Material(wire_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.3,.1,.9,1)}),
                              water: new Material(water_shader, {ambient:.8,diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.9,1.)}),
                              wood: new Material(wood_shader, { ambient: 1., diffusivity: .5, specularity:.5}),
@@ -224,7 +230,7 @@ class Solar_System extends Scene
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
                                   // stores 30 random location matrices for drawing stars behind the solar system:
-      
+
       this.part_on = false;
       this.star_matrices = [];
       for( let i=0; i<30; i++ )
@@ -264,10 +270,18 @@ class Solar_System extends Scene
        this.key_triggered_button("Toggle particles", ["p"], () => this.part_on ^= 1);
 
        this.key_triggered_button("Play/pause music", [ "Enter" ], () => {
-        if (this.playingMusic)
+        if (this.playingMusic){
           this.currentlyPlayingSound().pause();
-        else
-          this.currentlyPlayingSound().play();
+          diskPresent = false;
+          canRotate = false;
+          movingDisk = false;
+        }
+        else{
+
+          //this.currentlyPlayingSound().play();
+          newDisk = true;
+          canRotate = true;
+        }
 
         this.playingMusic ^= 1;
        });
@@ -281,6 +295,7 @@ class Solar_System extends Scene
          this.restartSong(this.currentlyPlayingSong());
        });
        this.key_triggered_button("Next song", [ "'" ], () => {
+         numSong++;
          this.currentlyPlayingSound().pause();
          this.currentlyPlayingIndex++;
          if (this.currentlyPlayingIndex > this.songs.length - 1) this.currentlyPlayingIndex = 0;
@@ -379,14 +394,47 @@ class Solar_System extends Scene
       model_transform = model_transform.post_multiply(Mat4.translation([1.05,0,-1.05]));
       model_transform = model_transform.post_multiply(Mat4.rotation(Math.sin(t)/100.-.05,[1,0,0]));
       model_transform = model_transform.post_multiply(Mat4.translation([-1.05,.05,1.05]));
-      this.shapes.spindle.draw(context, program_state, model_transform, this.materials.toon.override({color: Color.of(.1,.5,.5,1.)}));
+      this.shapes.spindle.draw(context, program_state, model_transform, this.materials.toon.override({color: Color.of(137/255,137/255,137/255,1.)}));
       model_transform = saveMatrix.copy();
       model_transform = model_transform.post_multiply(Mat4.scale([1/.75,1/.75,1/.75]));
       model_transform = model_transform.post_multiply(Mat4.translation([-.72,-.15,0]));
       //model_transform = model_transform.post_multiply(Mat4.scale([2,2,2]));
      // this.shapes.ball_4.draw(context, program_state, model_transform, this.materials.water.override({color:Color.of(.2,.5,.5,.9)}));
-     model_transform = model_transform.post_multiply(Mat4.rotation(t*2,[0,1,0]));
-      this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
+     if(canRotate){
+            model_transform = model_transform.post_multiply(Mat4.rotation(t*2,[0,1,0]));
+     }
+     if(diskPresent){
+              switch(numSong){
+                case 0:
+                  this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  break;
+                case 1:
+                console.log("case 1");
+                  this.shapes.disk.draw(context, program_state, model_transform, this.materials.fire.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  break;
+                case 2:
+                console.log("case 2");
+                  this.shapes.disk.draw(context, program_state, model_transform, this.materials.water.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  break;
+                case 3:
+                console.log("case 3");
+                     this.shapes.disk.draw(context, program_state, model_transform, this.materials.glow.override({color: Color.of(.2588,.8431,.9568,1)}));
+                     break;
+
+                case 4:
+                break;
+                case 5:
+                break;
+                case 6:
+                break;
+                case 7:
+                break;
+                default:
+                  this.shapes.disk.draw(context, program_state, model_transform, this.materials.betterWater.override({color: Color.of(.2588,.8431,.9568,1)}));
+                  break;
+
+              }
+     }
       model_transform = model_transform.post_multiply(Mat4.translation([0,.5,0]));
       model_transform = Mat4.identity();
       model_transform = model_transform.post_multiply(Mat4.scale([9.6,9.6,9.6]));
@@ -397,6 +445,66 @@ class Solar_System extends Scene
       //model_transform = model_transform.post_multiply(Mat4.translation([0,.6,0]));
       this.shapes.lid.draw(context, program_state, model_transform, this.materials.plastic.override({color:Color.of(.4,.4,.4,.5)}));
 
+      model_transform = Mat4.identity();
+      model_transform = model_transform.post_multiply(Mat4.translation([9,-2,0]));
+      model_transform = model_transform.post_multiply(Mat4.scale([3,1,3]));
+      model_transform = model_transform.post_multiply(Mat4.scale([1.5,1.3,1.5]));
+      this.shapes.box.draw(context,program_state,model_transform,this.materials.plastic.override({color: Color.of(53/255,35/255,13/255,1.), ambient: .3}));
+      model_transform = model_transform.post_multiply(Mat4.scale([1/1.5,1/1.3,1/1.5]));
+      model_transform = model_transform.post_multiply(Mat4.scale([.8,.8,.8]));
+
+      //model_transform = model_transform.post_multiply(Mat4.translation([0,1,0]));
+      if(newDisk){
+        //console.log("yeet");
+        timeStartedClick = t;
+        newDisk = false;
+        movingDisk = true;
+      }
+      //loads a disk on to the record
+      if(movingDisk){
+        var timeDiff = t - timeStartedClick;
+        //console.log("time diff is: " + timeDiff);
+        var times = [1,2.7,4.52,6.25];
+              model_transform = model_transform.post_multiply(Mat4.scale([.8,.8,.8]));
+
+        model_transform = model_transform.post_multiply(Mat4.scale([1/.5,1/.5,1/.5]));
+        if(timeDiff <times[0]){
+        model_transform = model_transform.post_multiply(Mat4.translation([0,0,timeDiff*3]));
+        }
+        else if(timeDiff< times[1]){
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,1*3]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,(timeDiff-times[0])*2,0]));
+        }else if(timeDiff < times[2]){
+          //left
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,1*3]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,(times[0]*2)+1,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([(timeDiff-times[1])*-2,0,0]));
+        }else if(timeDiff<times[3]){
+          //backwardss
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,1*3]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,times[0]*2+1,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([(times[2]-times[1])*-2,0,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,-(timeDiff-times[2])*2]));
+        }else if (timeDiff<10){
+          //down
+          model_transform = model_transform.post_multiply(Mat4.translation([0,0,1*3]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,times[0]*2+1,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([(times[2]-times[1])*-2,0,0]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,0,-(times[3]-times[2])*2]));
+            model_transform = model_transform.post_multiply(Mat4.translation([0,-(timeDiff-times[3]),0]));
+        }
+
+
+        if(timeDiff >= 10){
+          movingDisk = false;
+          diskPresent = true;
+          this.currentlyPlayingSound().play();
+
+        }else{
+          this.shapes.disk.draw(context,program_state,model_transform,this.materials.plastic.override({color: Color.of(137/255,137/255,137/255,1), ambient: .5, specularity:1}));
+
+        }
+      }
       // particles
       let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
       const updown = Math.sin(6*t);
@@ -612,7 +720,7 @@ class Gouraud_Shader extends defs.Phong_Shader
             return this.shared_glsl_code() + `
         void main()
           {
-                        
+
           } `;
         }
     }
@@ -685,7 +793,7 @@ class Wireframe_Shader extends Shader{
 
 const Particle_Shader = defs.Particle_Shader =
 class Particle_Shader extends Shader
-{ 
+{
   update_GPU( context, gpu_addresses, program_state, model_transform, material )
     {
       const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
@@ -709,7 +817,7 @@ class Particle_Shader extends Shader
   shared_glsl_code()            // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
     { return `precision mediump float;
         uniform float ambient, diffusivity, specularity, smoothness;
-        uniform vec4 shape_color;                
+        uniform vec4 shape_color;
       `;
     }
   vertex_glsl_code()           // ********* VERTEX SHADER *********
@@ -762,11 +870,11 @@ class Particle_Shader extends Shader
 
         void main()
         {
-            //gl_FragColor = sun_color;          
+            //gl_FragColor = sun_color;
 
             vec4 tex_color = texture2D( texture, f_tex_coord );
             if( tex_color.w < .01 ) discard;
-            gl_FragColor = tex_color; 
+            gl_FragColor = tex_color;
 
         }` ;
     }
@@ -1665,17 +1773,17 @@ send_material( gl, gpu, material )
       }
 
 
-} 
+}
 
 const Sun_Shader = defs.Sun_Shader =
     class Sun_Shader extends Shader {
 
         send_material(gl, gpu, material) { // send_material(): Send the desired shape-wide material qualities to the
-            // graphics card, where they will tweak the Phong lighting formula.                                      
+            // graphics card, where they will tweak the Phong lighting formula.
                                             // graphics card, where they will tweak the Phong lighting formula.
-            // graphics card, where they will tweak the Phong lighting formula.                                      
+            // graphics card, where they will tweak the Phong lighting formula.
                                             // graphics card, where they will tweak the Phong lighting formula.
-            // graphics card, where they will tweak the Phong lighting formula.                                      
+            // graphics card, where they will tweak the Phong lighting formula.
             gl.uniform4fv(gpu.sun_color, material.color);
             gl.uniform1f(gpu.ambient, material.ambient);
             gl.uniform1f(gpu.diffusivity, material.diffusivity);
@@ -1745,7 +1853,7 @@ const Sun_Shader = defs.Sun_Shader =
     vec3 fade(vec3 t) {
     return t*t*t*(t*(t*6.0-15.0)+10.0);
     }
-    // Klassisk Perlin noise 
+    // Klassisk Perlin noise
     float cnoise(vec3 P) {
     vec3 Pi0 = floor(P); // indexing
     vec3 Pi1 = Pi0 + vec3(1.0); // Integer part + 1
@@ -1806,7 +1914,7 @@ const Sun_Shader = defs.Sun_Shader =
     float n_xyz = mix(n_yz.x, n_yz.y, fade_xyz.x);
     return 1.5 * n_xyz;
     }
-    // Ashima code 
+    // Ashima code
     float turbulence( vec3 p ) {
         float t = -0.5;
         for (float f = 1.0 ; f <= 10.0 ; f++ ){
@@ -1817,7 +1925,7 @@ const Sun_Shader = defs.Sun_Shader =
     }
     void main() {
         noise = -0.8 * turbulence( turbulenceDetail * normal + ( time * .2 ) );
-        
+
         float b = pulseHeight * cnoise(
             0.05 * position + vec3( 1.0 * time )
         );
@@ -1832,7 +1940,7 @@ const Sun_Shader = defs.Sun_Shader =
             {
                 return this.shared_glsl_code() + `
             void main()
-            { 
+            {
             vec3 color = vec3((1.-disp), (0.1-disp*0.2)+0.1, (0.1-disp*0.1)+0.1*abs(sin(disp)));
             gl_FragColor = vec4( color.rgb, 1.0 );
             gl_FragColor *= sun_color;
@@ -1877,13 +1985,13 @@ const Rainbow_Shader = defs.Rainbow_Shader =
             // displace vertex based on normal
 
             void main() {
-                
-                //displace disk vertices 
+
+                //displace disk vertices
                 //create varying amplitude based on noise
-                
+
                 newPosition = vec3( (normal.x + position.x)/1.8, pulseHeight*(normal.y + position.y) + sin(position.x*45.+ animation_time)*.1, (normal.z  + position.z)/1.8 );
                 gl_Position = projection_camera_model_transform * vec4( newPosition, 1.0 );
-               
+
             }`;
         }
         fragment_glsl_code() // ********* FRAGMENT SHADER *********
@@ -1902,7 +2010,7 @@ const Rainbow_Shader = defs.Rainbow_Shader =
 const Flower_Shader = defs.Flower_Shader =
     class Flower_Shader extends Shader {
         send_material(gl, gpu, material) { // send_material(): Send the desired shape-wide material qualities to the
-            // graphics card, where they will tweak the Phong lighting formula.                                      
+            // graphics card, where they will tweak the Phong lighting formula.
             gl.uniform4fv(gpu.sun_color, material.color);
             gl.uniform1f(gpu.ambient, material.ambient);
             gl.uniform1f(gpu.diffusivity, material.diffusivity);
@@ -1952,7 +2060,7 @@ const Flower_Shader = defs.Flower_Shader =
 
         attribute vec3 position;
         attribute vec3 normal;
-        
+
         attribute vec2 uv;
         attribute vec2 uv2;
 
@@ -1982,11 +2090,11 @@ const Flower_Shader = defs.Flower_Shader =
           return t*t*t*(t*(t*6.0-15.0)+10.0);
         }
 
-        // Klassisk Perlin noise 
+        // Klassisk Perlin noise
 // Klassisk Perlin noise
-        // Klassisk Perlin noise 
+        // Klassisk Perlin noise
 // Klassisk Perlin noise
-        // Klassisk Perlin noise 
+        // Klassisk Perlin noise
         float cnoise(vec3 P) {
           vec3 Pi0 = floor(P); // indexing
           vec3 Pi1 = Pi0 + vec3(1.0); // Integer part + 1
@@ -2055,11 +2163,11 @@ const Flower_Shader = defs.Flower_Shader =
           return 1.5 * n_xyz;
         }
 
-      // Ashima code 
+      // Ashima code
 // Ashima code
-      // Ashima code 
+      // Ashima code
 // Ashima code
-      // Ashima code 
+      // Ashima code
       float turbulence( vec3 p ) {
           float t = -0.5;
           for (float f = 1.0 ; f <= 10.0 ; f++ ){
@@ -2073,9 +2181,9 @@ const Flower_Shader = defs.Flower_Shader =
           noise = -0.8 * turbulence( turbulenceDetail * normal + ( .1 * time ) );
           float pct = abs(sin( time ));
           float b = pulseHeight * cnoise (
-              0.05 * position + vec3( 1.0  ) 
+              0.05 * position + vec3( 1.0  )
           );
-          
+
           float displacement = ( 0.0 - displacementHeight ) * noise + b;
           disp = displacement*30.;
           vec3 stretch_displacement = 5.5 * displacement * (normal+position);
@@ -2090,7 +2198,7 @@ const Flower_Shader = defs.Flower_Shader =
             return this.shared_glsl_code() + `
 
         void main()
-        { 
+        {
           vec3 color = vec3((1.-disp), (0.1-disp*0.2)+0.1, (0.1-disp*0.1)+0.1*abs(sin(disp)));
           gl_FragColor = vec4( color.rgb, 1.0 );
           gl_FragColor *= sun_color;
@@ -2104,7 +2212,7 @@ const trippy_shader = defs.Trippy_Shader =
     class Trippy_Shader extends Shader {
 
         send_material(gl, gpu, material) { // send_material(): Send the desired shape-wide material qualities to the
-            // graphics card, where they will tweak the Phong lighting formula.                                      
+            // graphics card, where they will tweak the Phong lighting formula.
             gl.uniform4fv(gpu.sun_color, material.color);
             gl.uniform1f(gpu.ambient, material.ambient);
             gl.uniform1f(gpu.diffusivity, material.diffusivity);
@@ -2140,7 +2248,7 @@ const trippy_shader = defs.Trippy_Shader =
               uniform vec4 sun_color;
               uniform float time;
               varying float noise;
-            
+
               uniform mat4 projection_camera_model_transform;
 
       `;
@@ -2152,72 +2260,72 @@ const trippy_shader = defs.Trippy_Shader =
             attribute vec3 position;
             attribute vec3 normal;
 
-            void main() { 
+            void main() {
 
                 gl_Position = projection_camera_model_transform * vec4(position, 1.);
 
             }
-            
+
        `;
         }
         fragment_glsl_code() // ********* FRAGMENT SHADER ONLY *********
         {
             return this.shared_glsl_code() + `
 
-           
+
             vec2 random2( vec2 p ) {
                 return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);
             }
 
-            void main() { 
+            void main() {
                 vec2 u_resolution = vec2( 50.,50.); //dimensions of cell space
                 vec2 st = gl_FragCoord.xy/u_resolution.xy;
                 st.x *= u_resolution.x/u_resolution.y; //ratio
                 vec3 color = vec3(0.);
-            
-            
+
+
                 // Tile the space
                 vec2 i_st = floor(st);
                 vec2 f_st = fract(st);
-            
+
                 float m_dist = 1.;  // minimun distance
-            
+
                 for (int y= -1; y <= 1; y++) {
                     for (int x= -1; x <= 1; x++) {
                         // Neighbor place in the grid
                         vec2 neighbor = vec2(float(x),float(y));
-            
+
                         // Random position from current + neighbor place in the grid
                         vec2 point = random2(i_st + neighbor);
-            
+
                         // Animate the point
                         point = 0.5 + 0.5*sin(time + 6.2831*point);
-            
+
                         // Vector between the pixel and the point
                         vec2 diff = neighbor + point - f_st;
-            
+
                         // Distance to the point
                         float dist = length(diff);
-            
+
                         // Keep the closer distance
                         m_dist = min(m_dist, dist);
                     }
                 }
-            
+
                 // Draw the min distance (distance field)
                 color += m_dist;
-            
+
                 // Draw cell center
                 color += 1.-step(.02, m_dist);
-            
+
                 // Draw grid
                 //color.r += step(.98, f_st.x) + step(.98, f_st.y);
-            
+
                 // Show isolines
                 color -= step(.7,abs(sin(27.0*m_dist)))*.5;
-            
+
                 gl_FragColor = sun_color *vec4(color, 1.);
-            
+
             }`;
         }
     }
