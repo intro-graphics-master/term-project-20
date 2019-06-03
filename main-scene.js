@@ -332,6 +332,7 @@ class Solar_System extends Scene
       let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
 
       if (this.part_on) {
+        model_transform = Mat4.identity();
         // .post_multiply( Mat4.translation(position_of_camera) );
         model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
         this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
