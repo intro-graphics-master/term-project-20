@@ -516,6 +516,8 @@ class Solar_System extends Scene
 
       if (this.part_on) {
         // .post_multiply( Mat4.translation(position_of_camera) );
+       model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny);
         model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) )
                        .post_multiply( Mat4.translation([1, 0, 0]) );
         this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
@@ -528,7 +530,7 @@ class Solar_System extends Scene
 
 
       // two-pass rendering
-
+if (this.multipass_effects.pixelate){
       this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
       this.texture.image.src = this.scratchpad.toDataURL("image/png");
 
@@ -567,7 +569,7 @@ class Solar_System extends Scene
 
         this.shapes.square.draw(context, program_state, model_transform, multipass_material);
       }
-
+}
       // ***** END TEST SCENE *****
 
             model_transform = model_transform.post_multiply(Mat4.translation([0, .5, 0]));
