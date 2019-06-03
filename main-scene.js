@@ -296,6 +296,9 @@ class Solar_System extends Scene
 
        this.key_triggered_button("Previous song", [ ";" ], () => {
          this.currentlyPlayingSound().pause();
+         if(numSong>0){
+           numSong--;
+         }
          this.currentlyPlayingIndex--;
          if (this.currentlyPlayingIndex < 0) this.currentlyPlayingIndex = this.songs.length - 1;
          this.restartSong(this.currentlyPlayingSong());
