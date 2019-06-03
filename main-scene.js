@@ -60,6 +60,7 @@ class Solar_System extends Scene
       const cloud_shader = new Cloud_Shader();
       const toon_shader = new Toon_Shader();
       const wood_shader = new Wood_Shader();
+      const fire_shader = new Fire_Shader();
 
                                               // *** Materials: *** wrap a dictionary of "options" for a shader.
 
@@ -82,6 +83,8 @@ class Solar_System extends Scene
                              wood: new Material(wood_shader, { ambient: 1., diffusivity: .5, specularity:.5}),
                      betterWater: new Material(cloud_shader,{ambient:1, diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.5,1.)}),
                             toon: new Material(toon_shader,{ambient:1, diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.5,1.)}),
+                            fire: new Material(fire_shader,{ambient:1, diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.5,1.)}),
+
                        };
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
@@ -228,7 +231,7 @@ class Solar_System extends Scene
       model_transform = model_transform.post_multiply(Mat4.translation([1.05,0,-1.05]));
       model_transform = model_transform.post_multiply(Mat4.rotation(Math.sin(t)/100.-.05,[1,0,0]));
       model_transform = model_transform.post_multiply(Mat4.translation([-1.05,.05,1.05]));
-      this.shapes.spindle.draw(context, program_state, model_transform, this.materials.toon.override({color: Color.of(.5,.5,.5,1.)}));
+      this.shapes.spindle.draw(context, program_state, model_transform, this.materials.toon.override({color: Color.of(.1,.5,.5,1.)}));
       model_transform = saveMatrix.copy();
       model_transform = model_transform.post_multiply(Mat4.scale([1/.75,1/.75,1/.75]));
       model_transform = model_transform.post_multiply(Mat4.translation([-.72,-.15,0]));
@@ -240,6 +243,7 @@ class Solar_System extends Scene
       model_transform = Mat4.identity();
       model_transform = model_transform.post_multiply(Mat4.scale([9.6,9.6,9.6]));
       model_transform = model_transform.post_multiply(Mat4.translation([-.36,.4,-.85]));
+
       //model_transform = model_transform.post_multiply(Mat4.translation([0,-.6,-0]));
       //model_transform = model_transform.post_multiply(Mat4.rotation(Math.PI/2-Math.sin(t)/2-.5,[1,0,0]));
       //model_transform = model_transform.post_multiply(Mat4.translation([0,.6,0]));
@@ -1099,7 +1103,7 @@ class Wood_Shader extends Shader{
                 varying vec3 vPosition;
                 uniform float time;
                 vec3 color1 = vec3(.3294117,.1568,.0196078);
-                vec3 color2 = vec3(.4745,.2705,.1764);
+                vec3 color2 = vec3(.6666667,.5607,.4745);
                 float frequency = 2.;
                 float noiseScale = 10.;
                 float ringScale = .9;
@@ -1230,6 +1234,242 @@ class Wood_Shader extends Shader{
 
 }
 
+
+const Fire_Shader = defs.Fire_Shader = 
+class Fire_Shader extends Shader
+{
+send_material( gl, gpu, material )
+          {                                       // send_material(): Send the desired shape-wide material qualities to the
+                                                  // graphics card, where they will tweak the Phong lighting formula.                                      
+            gl.uniform4fv( gpu.sun_color,    material.color       );
+            gl.uniform1f ( gpu.ambient,        material.ambient     );
+            gl.uniform1f ( gpu.diffusivity,    material.diffusivity );
+            gl.uniform1f ( gpu.specularity,    material.specularity );
+            gl.uniform1f ( gpu.smoothness,     material.smoothness  );
+          }
+
+
+      update_GPU( context, gpu_addresses, program_state, model_transform, material )
+          {
+                            // TODO (#EC 2): Pass the same information to the shader as for EC part 1.  Additionally
+                            // pass material.color to the shader.
+           const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
+                            PCM = P.times( C ).times( M );
+              context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D( PCM.transposed() ) );
+              context.uniform1f ( gpu_addresses.time, program_state.animation_time / 1000 );  
+              context.uniform1f(gpu_addresses.sun_color, material.color);  
+              const defaults = { color: Color.of( 0,0,0,1 ), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40 };
+              material = Object.assign( {}, defaults, material );
+              this.send_material ( context, gpu_addresses, material );
+          }
+      shared_glsl_code(){
+        return `
+        precision highp float;
+        precision highp int;
+        uniform mat4 projection_camera_model_transform;
+          varying vec3 vPosition;
+          varying vec2 vUv;
+          varying vec4 Output;
+          #define PI 3.14159265359
+              uniform float time;
+              #define Scale vec3(.8, .8, .8)
+              #define K 19.19
+              const int iterations = 15;
+
+              bool Postprocess = false;
+
+              vec3 hash(vec3 p3)
+              {
+                  p3 = fract(p3 * Scale);
+                  p3 += dot(p3, p3.yxz+19.19);
+                  return fract((p3.xxy + p3.yxx)*p3.zyx);
+
+              }
+
+              vec3 noise( in vec3 x )
+              {
+                  vec3 p = floor(x);
+                  vec3 f = fract(x);
+                  f = f*f*(3.0-2.0*f);
+
+                  return mix(mix(mix( hash(p+vec3(0,0,0)), 
+                                      hash(p+vec3(1,0,0)),f.x),
+                                 mix( hash(p+vec3(0,1,0)), 
+                                      hash(p+vec3(1,1,0)),f.x),f.y),
+                             mix(mix( hash(p+vec3(0,0,1)), 
+                                      hash(p+vec3(1,0,1)),f.x),
+                                 mix( hash(p+vec3(0,1,1)), 
+                                      hash(p+vec3(1,1,1)),f.x),f.y),f.z);
+              }
+
+              const mat3 m = mat3( 0.00,  0.80,  0.60,
+                                  -0.80,  0.36, -0.48,
+                                  -0.60, -0.48,  0.64 );
+              vec3 fbm(in vec3 q)
+              {
+                          vec3 f  = 0.5000*noise( q ); q = m*q*2.01;
+                          f += 0.2500*noise( q ); q = m*q*2.02;
+                          f += 0.1250*noise( q ); q = m*q*2.03;
+                          f += 0.0625*noise( q ); q = m*q*2.04; 
+                          f += 0.03125*noise( q ); q = m*q*2.05; 
+                          //f += 0.015625*noise( q ); q = m*q*2.06; 
+                          //f += 0.0078125*noise( q ); q = m*q*2.07; 
+                          //f += 0.00390625*noise( q ); q = m*q*2.08;  
+                  return vec3(f);
+              }
+
+              float smin( float a, float b )
+              {
+                  float k = .1;
+                  float h = clamp( .5+.5*(b-a)/k, 0., 1. );
+                  return mix( b, a, h ) - k*h*(1.0-h);
+              }
+
+
+              float sdSphere(in vec3 p, in float r)
+              {
+                  return length(p) - r;
+              }
+
+              vec3 Fire(in vec3 q)
+              {
+                  vec3 s = vec3(q) - vec3(0.0,time*1.8, 0.0);
+                  s = fbm(s);
+                  return vec3(max((s.x)*0.9, 0.5*abs(q.x)), smin(s.y, q.y), q.z);
+              }
+
+              float map(in vec3 p)
+              {
+                  vec3 q = Fire(p);
+
+                  float sphere = sdSphere(q, 1.0);
+
+                  return sphere;
+              }
+
+              float intersect(in vec3 ro, in vec3 rd)
+              {
+                  float maxD = 500.0;
+                  float h = 1.0;
+                  float t = 0.0;
+
+                  for(int i = 0; i < iterations; i++)
+                  {
+                      if(h < 0.001 || t > maxD)
+                          break;
+                      h = map(ro+rd*t);
+                      t += h;
+                  }
+                  if( t>maxD ) t=-1.0;
+                  return t;
+
+              }
+
+              vec3 PostProcess(in vec2 fc)
+              {
+                  vec3 oColor = vec3(0.);
+
+                  int vertical = int(mod(fc.x, 6.0));
+                  if(vertical < 2) oColor.x = 1.0;
+                  else if(vertical >= 2 && vertical < 4) oColor.y = 1.0;
+                  else oColor.z = 1.0;
+
+
+                  float horizontal = (mod(fc.y, 6.0));
+                  oColor *= vec3(horizontal/6.0);
+
+                  return oColor;
+              }
+
+
+         `
+      }
+      vertex_glsl_code(){
+        return this.shared_glsl_code() + `
+              attribute vec3 position;
+              attribute vec3 normal;
+              attribute vec2 uv;
+              void main(){
+                vUv = position.xz;
+                vPosition = position;
+                gl_Position = projection_camera_model_transform*vec4(position,1.0);
+
+
+                vec2 uv = vUv.xy;
+                  uv = uv * .4 - 0.2;
+
+                  vec3 ro = vec3(0.0, 0.85, 2.15);
+                  vec3 rd = normalize(vec3(uv, -1.0));
+                  float t = 0.0;
+
+
+                  t = intersect(ro, rd);
+                  vec3 pos = ro+rd*t;
+                  vec3 fire = vec3(0.0);
+
+                  if(t > 0.0)
+                  {
+                      vec3 pos = ro+rd*t;
+                      fire = 1.0 - vec3(t*t-1.0);
+                      //fire = vec3((fire.x+1.0)*1.2-pos.y, (fire.x+.4)*1.3-pos.y, (1.9+fire.x*1.5) * smoothstep(-0.1, 0.5, pos.y) );
+                      fire = vec3((1.4+fire.x*1.2) * smoothstep(-0.1, 0.5, pos.y),(fire.x+.7)*1.2-pos.y,(fire.x+.6)*1.-pos.y);
+                  }
+
+                  if(Postprocess)
+                     Output = vec4(PostProcess(vUv.xy), 1.0) * vec4(fire*2.0,1.0);
+                  else
+                     Output = vec4(fire,1.0);
+
+                  float totalBrightness = (Output.x+Output.y+Output.z)/3.;
+                  vec4 newPosition = vec4(position,1.0) + vec4(0.,totalBrightness,0.,0.)/15.;
+                  gl_Position = projection_camera_model_transform*newPosition;
+              }
+
+         `
+
+      }
+      fragment_glsl_code(){
+          return this.shared_glsl_code() + `
+              
+              void main()
+              {
+                  vec2 uv = vUv.xy;
+                  uv = uv * .4 - 0.2;
+
+                  vec3 ro = vec3(0.0, 0.85, 2.15);
+                  vec3 rd = normalize(vec3(uv, -1.0));
+                  float t = 0.0;
+
+
+                  t = intersect(ro, rd);
+                  vec3 pos = ro+rd*t;
+                  vec3 fire = vec3(0.0);
+
+                  if(t > 0.0)
+                  {
+                      vec3 pos = ro+rd*t;
+                      fire = 1.0 - vec3(t*t-1.0);
+                      //fire = vec3((fire.x+1.0)*1.2-pos.y, (fire.x+.4)*1.3-pos.y, (1.9+fire.x*1.5) * smoothstep(-0.1, 0.5, pos.y) );
+                      fire = vec3((1.4+fire.x*1.2) * smoothstep(-0.1, 0.5, pos.y),(fire.x+.6)*1.2-pos.y,(fire.x+.6)*1.-pos.y);
+                  }
+
+                  vec4 Output;
+
+                  if(Postprocess)
+                     Output = vec4(PostProcess(vUv.xy), 1.0) * vec4(fire*2.0,1.0);
+                  else
+                     Output = vec4(fire,1.0);
+                  float totalBrightness = (Output.x+Output.y+Output.z)/3.;
+                  Output =vec4(Output.x,Output.y,Output.z,totalBrightness*.9);
+                  gl_FragColor = Output;
+              }
+
+            `
+      }
+
+
+
+}
 
 
 const Sun_Shader = defs.Sun_Shader =
