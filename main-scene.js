@@ -284,6 +284,18 @@ class Solar_System extends Scene
       //model_transform = model_transform.post_multiply(Mat4.translation([0,.6,0]));
       this.shapes.lid.draw(context, program_state, model_transform, this.materials.plastic.override({color:Color.of(.4,.4,.4,.5)}));
 
+      // particles
+      let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
+      model_transform = Mat4.identity();
+      if (this.part_on) {
+        // .post_multiply( Mat4.translation(position_of_camera) );
+        model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
+
+        model_transform.post_multiply( Mat4.translation([5,5,5]) );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override( blue ) );
+      }
+
       // two-pass rendering
 
       if (Object.values(this.multipass_effects).some(effect => effect)) {
@@ -324,18 +336,6 @@ class Solar_System extends Scene
         }
 
         this.shapes.box.draw(context, program_state, model_transform, multipass_material);
-      }
-      
-      // particles
-      let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
-      model_transform = Mat4.identity();
-      if (this.part_on) {
-        // .post_multiply( Mat4.translation(position_of_camera) );
-        model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
-        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
-
-        model_transform.post_multiply( Mat4.translation([5,5,5]) );
-        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override( blue ) );
       }
       
       // ***** END TEST SCENE *****
