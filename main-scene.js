@@ -371,14 +371,13 @@ class Solar_System extends Scene
 
       // two-pass rendering
 
-      if (Object.values(this.multipass_effects).some(effect => effect)) {
-        this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
-        this.texture.image.src = this.scratchpad.toDataURL("image/png");
+      this.scratchpad_context.drawImage(context.canvas, 0, 0, 1024, 1024);
+      this.texture.image.src = this.scratchpad.toDataURL("image/png");
 
+      if (Object.values(this.multipass_effects).some(effect => effect)) {
         if (this.skipped_first_frame)
           this.texture.copy_onto_graphics_card(context.context, false);
         this.skipped_first_frame = true;
-
         context.context.clear(context.context.COLOR_BUFFER_BIT | context.context.DEPTH_BUFFER_BIT);
 
         model_transform = Mat4.identity();
