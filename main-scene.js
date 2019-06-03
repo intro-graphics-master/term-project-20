@@ -29,12 +29,12 @@ class Part extends Square
     this.arrays.center.push(Vec.of(0,0,0));
     this.arrays.center.push(Vec.of(0,0,0));
 
-    for( var i = 0; i < 600; i++ )
+    for( var i = 0; i < 200; i++ )
         { 
           
           let factor = 200.0;
           let factor2 = factor / 2;   
-          let num = randomNum(0.1, 1.0);   
+          let num = randomNum(0.1, 0.4);   
               
           var square_transform = Mat4.translation([ factor*Math.random()-factor2, factor*Math.random()-factor2, factor*Math.random()-factor2 ])
                                      .times( Mat4.scale([ num, num, num ]) );
@@ -294,21 +294,21 @@ class Solar_System extends Scene
       const updown = Math.sin(6*t);
       const move = ((t*10)%360)*Math.PI/180.0;
       var randnum = Math.random()*10;
+      var direction = Vec.of(1,1,1,1);
 
       model_transform = Mat4.identity();
 
       if (this.part_on) {
         // .post_multiply( Mat4.translation(position_of_camera) );
-        model_transform
-                       .post_multiply( Mat4.scale([0.3, 0.3, 0.3]) )
-                       .post_multiply( Mat4.translation([0, 0, 0]) );
+        model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) )
+                       .post_multiply( Mat4.translation([1, 0, 0]) );
         this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override(blue) );
 
-        const direction = Vec.of(1,1,1,1);
-        model_transform.post_multiply( Mat4.translation([-2.5, 5.5, -2]) );
-                       //.post_multiply( Mat4.rotation(-move, [0, 1, 0]));;
+        direction = Vec.of(-1,-1,-1,-1);
+        model_transform.post_multiply( Mat4.translation([-2.5*t, 5.5, -2]) );
+             //.post_multiply( Mat4.rotation(-move, [0, 1, 0]));;
 
-        //this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
       }
 
       // two-pass rendering
@@ -555,12 +555,12 @@ class Particle_Shader extends Shader
       const [ P, C, M ] = [ program_state.projection_transform, program_state.camera_inverse, model_transform ],
                           PCM = P.times( C ).times( M );
       context.uniformMatrix4fv( gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D( PCM.transposed() ) );
-      //context.uniformMatrix4fv( gpu_addresses.camera_transform, false, Mat.flatten_2D_to_1D( program_state.model_transform.transposed() ));
       context.uniformMatrix4fv( gpu_addresses.camera_transform, false, Mat.flatten_2D_to_1D( program_state.camera_inverse.transposed() ) );
       context.uniform1f ( gpu_addresses.animation_time, program_state.animation_time / 1000 ); 
       context.uniform1f ( gpu_addresses.smoothly_varying_ratio, program_state.smoothly_varying_ratio ); 
       context.uniform4fv( gpu_addresses.sun_color, material.color );
       context.uniformMatrix4fv (gpu_addresses.model_transform, false, Mat.flatten_2D_to_1D( model_transform.transposed() ) );
+      //context.uniform4fv (gpu_addresses.direction, program_state.direction);
 
       if( material.texture && material.texture.ready )
       {                         // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
@@ -591,7 +591,7 @@ class Particle_Shader extends Shader
         uniform mat4 model_transform;
         uniform mat4 camera_transform;
         uniform float animation_time;
-        //uniform vec4 direction;
+        uniform vec4 direction;
 
         float modI(float a,float b) {
           return a - b * floor(a/b);
@@ -602,17 +602,15 @@ class Particle_Shader extends Shader
           vec3 cameraUp = normalize(vec3(camera_transform[0].y, camera_transform[1].y, camera_transform[2].y));
           f_tex_coord = texture_coord;
 
-          //vec3 direction = normalize(vec3(model_transform[3]));
+          vec3 direction = normalize(vec3(model_transform[0]));
 
-          //vec3 newCenter = center.xyz + vec3(direction.xyz*animation_time);
-          vec3 newCenter = center.xyz + vec3(animation_time);
+          vec3 newCenter = center.xyz + vec3(direction.xyz*animation_time);
+          //vec3 newCenter = center.xyz + vec3(animation_time);
           float range = 200.0;
 
           newCenter.x = modI(newCenter.x, range) - 100.;
           newCenter.y = modI(newCenter.y, range) - 100.;
           newCenter.z = modI(newCenter.z, range) - 100.;
-
-
 
           gl_Position = projection_camera_model_transform * vec4( newCenter.xyz + billboardOffset.x * cameraRight + billboardOffset.y * cameraUp, 1.0 );
         }`;
@@ -629,12 +627,12 @@ class Particle_Shader extends Shader
         void main() 
         {
 
-            gl_FragColor = sun_color;          
+            //gl_FragColor = sun_color;          
 
-            //vec4 tex_color = texture2D( texture, f_tex_coord );
-            //if( tex_color.w < .01 ) discard;
+            vec4 tex_color = texture2D( texture, f_tex_coord );
+            if( tex_color.w < .01 ) discard;
 
-            //gl_FragColor = tex_color; 
+            gl_FragColor = tex_color; 
 
         }` ;
     }
