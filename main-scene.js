@@ -133,7 +133,7 @@ class Solar_System extends Scene
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
                                   // stores 30 random location matrices for drawing stars behind the solar system:
-      this.lights_on = false;
+      this.part_on = false;
       this.star_matrices = [];
       for( let i=0; i<30; i++ )
         this.star_matrices.push( Mat4.rotation( Math.PI/2 * (Math.random()-.5), Vec.of( 0,1,0 ) )
@@ -144,8 +144,7 @@ class Solar_System extends Scene
     {                                 // make_control_panel(): Sets up a panel of interactive HTML elements, including
                                       // buttons with key bindings for affecting this scene, and live info readouts.
 
-                                 // TODO (#5b): Add a button control.  Provide a callback that flips the boolean value of "this.lights_on".
-       // this.key_triggered_button( 
+       this.key_triggered_button( "Particles on/off", ["p"], () => this.part_on = !this.part_on);
     }
   display( context, program_state )
     {                                                // display():  Called once per frame of animation.  For each shape that you want to
@@ -269,12 +268,14 @@ class Solar_System extends Scene
 
       let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
 
-      // .post_multiply( Mat4.translation(position_of_camera) );
-      model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
-      this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
+      if (this.part_on) {
+        // .post_multiply( Mat4.translation(position_of_camera) );
+        model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
 
-      model_transform.post_multiply( Mat4.translation([5,5,5]) );
-      this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override( blue ) );
+        model_transform.post_multiply( Mat4.translation([5,5,5]) );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override( blue ) );
+      }
 
     }
 }
