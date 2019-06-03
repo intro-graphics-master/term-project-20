@@ -29,12 +29,12 @@ class Part extends Square
     this.arrays.center.push(Vec.of(0,0,0));
     this.arrays.center.push(Vec.of(0,0,0));
 
-    for( var i = 0; i < 1000; i++ )
+    for( var i = 0; i < 600; i++ )
         { 
           
-          let factor = 300.0;
+          let factor = 200.0;
           let factor2 = factor / 2;   
-          let num = randomNum(0.1, 1.3);   
+          let num = randomNum(0.1, 1.0);   
               
           var square_transform = Mat4.translation([ factor*Math.random()-factor2, factor*Math.random()-factor2, factor*Math.random()-factor2 ])
                                      .times( Mat4.scale([ num, num, num ]) );
@@ -112,6 +112,8 @@ class Solar_System extends Scene
                                                               // A Simple Gouraud Shader that you will implement:
       const gouraud_shader    = new Gouraud_Shader     (2);
                                                               // Extra credit shaders:
+      const texture_phong = new defs.Textured_Phong();
+      
       const sun_shader        = new Sun_Shader();
       const wire_shader = new Wireframe_Shader();
       const funny_shader = new defs.Funny_Shader();
@@ -139,7 +141,8 @@ class Solar_System extends Scene
                                     { texture: new Texture( "assets/earth.gif" ),
                                       ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( .4,.4,.4,1 ) } ),
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
-                           shiny: new Material( particle_shader, {ambient: .8, diffusivity: .8, specularity: .8, color: Color.of(102/255,1,204/255,1)}),
+                           shiny: new Material( particle_shader, {texture: new Texture( "assets/sparkle2.png" ), ambient: .8, diffusivity: .8, specularity: .8, color: Color.of(102/255,1,204/255,1)}),
+                             
                              glow: new Material(wire_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.3,.1,.9,1)}),
                              water: new Material(water_shader, {ambient:.8,diffusivity:.5,specularity:.5, color: Color.of(.5,.5,.9,1.)}),
                         pixelate: new Material(pixel_shader, {ambient: 1, diffusivity: 1, specularity: 0, texture: this.texture, color: Color.of( 0,0,0,1 ), pixels: this.pixelation } ),
@@ -147,6 +150,8 @@ class Solar_System extends Scene
 
                                   // Some setup code that tracks whether the "lights are on" (the stars), and also
                                   // stores 30 random location matrices for drawing stars behind the solar system:
+      
+      this.direction = Vec.of(1,1,1,1);
       this.part_on = false;
       this.star_matrices = [];
       for( let i=0; i<30; i++ )
@@ -286,14 +291,24 @@ class Solar_System extends Scene
 
       // particles
       let position_of_camera = program_state.camera_transform.times( Vec.of( 0,0,0,1 ) ).to3();
+      const updown = Math.sin(6*t);
+      const move = ((t*10)%360)*Math.PI/180.0;
+      var randnum = Math.random()*10;
+
       model_transform = Mat4.identity();
+
       if (this.part_on) {
         // .post_multiply( Mat4.translation(position_of_camera) );
-        model_transform.post_multiply( Mat4.scale([0.3, 0.3, 0.3]) ).post_multiply( Mat4.translation([5,5,5]) );
-        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
+        model_transform
+                       .post_multiply( Mat4.scale([0.3, 0.3, 0.3]) )
+                       .post_multiply( Mat4.translation([0, 0, 0]) );
+        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override(blue) );
 
-        model_transform.post_multiply( Mat4.translation([5,5,5]) );
-        this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny.override( blue ) );
+        const direction = Vec.of(1,1,1,1);
+        model_transform.post_multiply( Mat4.translation([-2.5, 5.5, -2]) );
+                       //.post_multiply( Mat4.rotation(-move, [0, 1, 0]));;
+
+        //this.shapes.particle.draw( context, program_state, model_transform, this.materials.shiny );
       }
 
       // two-pass rendering
@@ -545,10 +560,20 @@ class Particle_Shader extends Shader
       context.uniform1f ( gpu_addresses.animation_time, program_state.animation_time / 1000 ); 
       context.uniform1f ( gpu_addresses.smoothly_varying_ratio, program_state.smoothly_varying_ratio ); 
       context.uniform4fv( gpu_addresses.sun_color, material.color );
+      context.uniformMatrix4fv (gpu_addresses.model_transform, false, Mat.flatten_2D_to_1D( model_transform.transposed() ) );
+
+      if( material.texture && material.texture.ready )
+      {                         // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
+        context.uniform1i( gpu_addresses.texture, 0);
+                                  // For this draw, use the texture image from correct the GPU buffer:
+        material.texture.activate( context );
+      }
     }
 
   shared_glsl_code()            // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
     { return `precision mediump float;
+        uniform float ambient, diffusivity, specularity, smoothness;
+        uniform vec4 shape_color;
                             
       `;
     }
@@ -560,16 +585,36 @@ class Particle_Shader extends Shader
         attribute vec3 center;
         attribute vec2 texture_coord;
         attribute vec3 billboardOffset;
+        varying vec2 f_tex_coord;
 
         uniform mat4 projection_camera_model_transform;
+        uniform mat4 model_transform;
         uniform mat4 camera_transform;
         uniform float animation_time;
+        //uniform vec4 direction;
+
+        float modI(float a,float b) {
+          return a - b * floor(a/b);
+      }
 
         void main() {
           vec3 cameraRight = normalize(vec3(camera_transform[0].x, camera_transform[1].x, camera_transform[2].x));
           vec3 cameraUp = normalize(vec3(camera_transform[0].y, camera_transform[1].y, camera_transform[2].y));
+          f_tex_coord = texture_coord;
 
-          gl_Position = projection_camera_model_transform * vec4( center.xyz + billboardOffset.x * cameraRight + billboardOffset.y * cameraUp, 1.0 );
+          //vec3 direction = normalize(vec3(model_transform[3]));
+
+          //vec3 newCenter = center.xyz + vec3(direction.xyz*animation_time);
+          vec3 newCenter = center.xyz + vec3(animation_time);
+          float range = 200.0;
+
+          newCenter.x = modI(newCenter.x, range) - 100.;
+          newCenter.y = modI(newCenter.y, range) - 100.;
+          newCenter.z = modI(newCenter.z, range) - 100.;
+
+
+
+          gl_Position = projection_camera_model_transform * vec4( newCenter.xyz + billboardOffset.x * cameraRight + billboardOffset.y * cameraUp, 1.0 );
         }`;
     }
   fragment_glsl_code()           // ********* FRAGMENT SHADER *********
@@ -577,15 +622,19 @@ class Particle_Shader extends Shader
         precision mediump float;
         uniform float animation_time;
         uniform vec4 sun_color;
-        float brightness = 0.82;
+
+        varying vec2 f_tex_coord;
+        uniform sampler2D texture;
 
         void main() 
         {
 
-//         vec3 color = vec3((1.-disp), (0.1-disp*0.2)+0.1, (0.1-disp*0.1)+0.1*abs(sin(disp)));
-//         gl_FragColor = vec4( color.rgb, 1.0 );
-//         gl_FragColor *= sun_color;
-          gl_FragColor = sun_color;
+            gl_FragColor = sun_color;          
+
+            //vec4 tex_color = texture2D( texture, f_tex_coord );
+            //if( tex_color.w < .01 ) discard;
+
+            //gl_FragColor = tex_color; 
 
         }` ;
     }
