@@ -212,7 +212,7 @@ class Solar_System extends Scene
         firelight: context.createMediaElementSource(this.sounds.firelight),
         cascade: context.createMediaElementSource(this.sounds.cascade), 
         compass: context.createMediaElementSource(this.sounds.compass), 
-        overworlds: context.createMediaElementSource(this.sounds.overworld),
+        overworld: context.createMediaElementSource(this.sounds.overworld),
         cairn: context.createMediaElementSource(this.sounds.cairn),
         glaciers: context.createMediaElementSource(this.sounds.glaciers)
       }
@@ -324,7 +324,9 @@ class Solar_System extends Scene
           this.currentlyPlayingSound().pause();
         } 
         else { 
-          this.newSource()
+          this.newSource();
+          newDisk = true;
+          canRotate = true;
           this.currentSource.connect(analyser); 
           analyser.connect(context.destination);
           analyser.smoothingTimeConstant = .8;
@@ -335,7 +337,10 @@ class Solar_System extends Scene
           volume_array = new Uint8Array(bufferlen);
           analyser.getByteFrequencyData(pitch_array);
           analyser.getByteTimeDomainData(volume_array);
-          this.currentlyPlayingSound().play();
+          context.resume().then(() => { 
+            this.currentlyPlayingSound().play();
+          })
+          
         }
           
 
@@ -2140,7 +2145,7 @@ const Rainbow_Shader = defs.Rainbow_Shader =
               // pass in volume data 
             context.uniform1f(gpu_addresses.animation_time, graphics_state.animation_time / 1000);
             context.uniform1f(gpu_addresses.pulseHeight, 0.2);
-            context.uniform1iv(gpu_addresses.freqData , pitch_array);
+            //.uniform1iv(gpu_addresses.freqData , pitch_array);
             // this.send_material(context, gpu_addresses, material);
         }
         // TODO (#EC 2):  Complete the shaders, displacing the input sphere's vertices as
@@ -2151,7 +2156,7 @@ const Rainbow_Shader = defs.Rainbow_Shader =
             return `precision mediump float;
                   varying float disp;
                   uniform float pulseHeight;
-                  uniform float freqData[1024];
+                  //uniform float freqData[1024];
                   uniform float animation_time;
                   varying vec3 newPosition;
 
@@ -2174,14 +2179,8 @@ const Rainbow_Shader = defs.Rainbow_Shader =
 
                 //displace disk vertices
                 //create varying amplitude based on noise
-<<<<<<< HEAD
-                float height = pulseHeight + freqData[0]/255.;
-
-                newPosition = vec3( (normal.x + position.x)/1.8, height*(normal.y + position.y) + sin(position.x*45.+ animation_time)*.1, (normal.z  + position.z)/1.8 );
-=======
 
                 newPosition = vec3( (normal.x + position.x)/1.8, pulseHeight*(normal.y + position.y) + sin(position.x*45.+ animation_time)*.1, (normal.z  + position.z)/1.8 );
->>>>>>> origin
                 gl_Position = projection_camera_model_transform * vec4( newPosition, 1.0 );
 
             }`;
