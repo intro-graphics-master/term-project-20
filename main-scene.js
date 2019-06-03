@@ -112,7 +112,6 @@ class Solar_System extends Scene
                                                               // A Simple Gouraud Shader that you will implement:
       const gouraud_shader    = new Gouraud_Shader     (2);
                                                               // Extra credit shaders:
-      const black_hole_shader = new Black_Hole_Shader();
       const sun_shader        = new Sun_Shader();
       const wire_shader = new Wireframe_Shader();
       const funny_shader = new defs.Funny_Shader();
@@ -139,7 +138,6 @@ class Solar_System extends Scene
                      metal_earth: new Material( texture_shader_2,    
                                     { texture: new Texture( "assets/earth.gif" ),
                                       ambient: 0, diffusivity: 1, specularity: 1, color: Color.of( .4,.4,.4,1 ) } ),
-                      black_hole: new Material( black_hole_shader ),
                              sun: new Material( sun_shader, { ambient: 1, color: Color.of( 0,0,0,1 ) } ),
                            shiny: new Material( particle_shader, {ambient: .8, diffusivity: .8, specularity: .8, color: Color.of(102/255,1,204/255,1)}),
                              glow: new Material(wire_shader, {ambient: .8, diffusivity: .5, specularity: .5, color: Color.of(.3,.1,.9,1)}),
